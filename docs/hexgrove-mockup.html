@@ -1,0 +1,1315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="theme-color" content="#0B1230">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hexgrove home screen mockup</title>
+<style>
+:root{
+  --night:#0B1230; --deep:#121B40; --line:#25315E; --gold:#F6B221; --gold-soft:#FFD36B;
+  --mist:#AEB9DD; --text:#F3F5FF; --leaf:#6EE0B0; --edge:#6573AA;
+  --page:#E9ECF5; --page-ink:#1B2240; --bar:#FFFFFF; --bar-line:#CBD2E6;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --page:#05070F; --page-ink:#DDE3F7; --bar:#10152B; --bar-line:#25304F; }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--page); color:var(--page-ink);
+  font-family: ui-rounded,"SF Pro Rounded","Nunito","Avenir Next",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-tap-highlight-color:transparent;
+}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold-soft);outline-offset:2px}
+
+.wrap{min-height:100dvh;display:flex;flex-direction:column;align-items:center}
+.mockbar{
+  width:100%;max-width:430px;display:flex;justify-content:space-between;align-items:center;
+  padding:6px 12px 6px 16px;font-size:13px;background:var(--bar);color:var(--page-ink);
+  border-bottom:1px solid var(--bar-line);
+}
+.mockbtn{
+  min-height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--bar-line);
+  background:transparent;color:var(--page-ink);cursor:pointer;font-size:13px;font-weight:700;
+}
+.phone{
+  width:100%;max-width:430px;flex:1;display:flex;flex-direction:column;
+  background:var(--night);color:var(--text);position:relative;overflow:clip;
+}
+
+/* top bar */
+.top{display:flex;align-items:center;justify-content:space-between;padding:10px 8px 2px 16px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:20px;letter-spacing:.2px}
+.icons{display:flex}
+.ibtn{width:44px;height:44px;border:0;background:transparent;color:var(--mist);display:grid;place-items:center;border-radius:12px;cursor:pointer}
+.ibtn[aria-pressed="true"]{color:var(--gold)}
+
+/* status strip */
+.strip{display:flex;justify-content:space-between;align-items:center;padding:4px 16px 10px;font-size:14px}
+.streak{display:flex;align-items:center;gap:6px;font-weight:700}
+.streak svg{color:var(--gold)}
+.chip{padding:6px 12px;border-radius:999px;border:1px solid var(--line);font-size:13px;display:flex;gap:6px;align-items:center;color:var(--mist)}
+.chip.ok{border-color:var(--gold);color:var(--gold-soft)}
+
+/* banner */
+.banner{margin:0 14px 8px;padding:10px 8px 10px 14px;border-radius:14px;background:#19234F;border:1px solid var(--line);display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:14px;line-height:1.35}
+.banner.storm{border-color:#8D6FB0}
+.banner p{margin:0;flex:1 1 190px;min-width:0}
+.banner p span{display:block;color:var(--mist);font-size:13px}
+.banner .xbtn{margin-left:auto}
+.linkbtn{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--gold-soft);font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap}
+.xbtn{width:44px;height:44px;border:0;background:transparent;color:var(--mist);cursor:pointer;border-radius:50%;font-size:20px;line-height:1}
+
+/* garden */
+.garden{position:relative;flex:1;min-height:350px;overflow:hidden}
+.sky{position:absolute;left:0;right:0;top:0;height:235px;-webkit-mask-image:linear-gradient(#000 12%,transparent 100%);mask-image:linear-gradient(#000 12%,transparent 100%)}
+.sky svg{position:absolute;inset:0;width:100%;height:100%}
+.sky.sunny{background:linear-gradient(180deg,#172E68 0%,#2C509A 60%,#6A7FA8 100%)}
+.sky.cloudy{background:linear-gradient(180deg,#1E2743 0%,#34436A 65%,#4C5C80 100%)}
+.sky.stormy{background:linear-gradient(180deg,#10132A 0%,#262345 65%,#3A3159 100%)}
+.sky.dusk{background:linear-gradient(180deg,#0A1033 0%,#18205A 65%,#262F70 100%)}
+.skylabel{
+  position:absolute;left:14px;top:12px;z-index:3;min-height:44px;padding:7px 14px 7px 12px;border-radius:14px;
+  background:rgba(11,18,48,.58);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.18);color:var(--text);display:flex;flex-direction:column;align-items:flex-start;cursor:pointer;text-align:left
+}
+.skylabel b{font-size:15px;line-height:1.15}
+.skylabel span{font-size:12.5px;color:#D2D9F2;line-height:1.2}
+.plots{position:absolute;left:0;right:0;top:44px;bottom:4px;width:100%;height:calc(100% - 48px)}
+.plot{cursor:pointer}
+.plot:focus-visible{outline:none}
+.plot:focus-visible polygon.tile{stroke:#fff;stroke-width:2.5}
+.plant{transform-box:fill-box;transform-origin:50% 100%}
+.thirsty .plant{filter:saturate(.4) brightness(.75)}
+.watered .plant{filter:drop-shadow(0 0 5px rgba(246,178,33,.5))}
+.rest .plant,.rest .seedglow{filter:grayscale(1) brightness(.65)}
+.pulse .plant{animation:grow .8s ease}
+@keyframes grow{40%{transform:scale(1.14)}100%{transform:scale(1)}}
+.seedglow{animation:breathe 3s ease-in-out infinite}
+@keyframes breathe{50%{opacity:.55}}
+.drop{position:absolute;top:-14px;width:6px;height:12px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:#8FD3FF;opacity:.9;animation:fall .9s ease-in forwards;z-index:4;pointer-events:none}
+@keyframes fall{to{transform:translateY(310px);opacity:0}}
+.rays{transform-origin:292px 52px;animation:spin 70s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.cloud{animation:drift 9s ease-in-out infinite alternate}
+.cloud.b{animation-duration:12s;animation-delay:-4s}
+@keyframes drift{from{transform:translateX(-8px)}to{transform:translateX(8px)}}
+.rainline{animation:rain 1.3s linear infinite}
+@keyframes rain{from{transform:translateY(-30px);opacity:0}25%{opacity:.7}to{transform:translateY(150px);opacity:0}}
+.star{animation:twinkle 4s ease-in-out infinite}
+@keyframes twinkle{50%{opacity:.25}}
+
+/* stats */
+.stats{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) minmax(0,1fr);padding:12px 6px 4px}
+.stat{padding:2px 12px;border-left:1px solid var(--line)}
+.stat:first-child{border-left:0}
+.stat small{display:block;color:var(--mist);font-size:12.5px;margin-bottom:2px}
+.stat b{font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.stats .stat:first-child b{font-size:23px;letter-spacing:-.2px}
+.stats .stat:first-child b.sm{font-size:20px}
+.stats .stat:last-child b{white-space:normal}
+@media (max-width:340px){.stats .stat:first-child b{font-size:19px}.stats .stat:first-child b.sm{font-size:16px}.stat b{font-size:15px}.stat b i{display:none}}
+.stat b i{font-style:normal;font-size:12px;color:var(--mist);font-weight:600;margin-left:3px}
+.empty{padding:14px 18px 4px;color:var(--mist);font-size:15px;line-height:1.45}
+
+/* actions */
+.actions{padding:12px 14px 16px;display:flex;gap:10px}
+.btn{height:56px;border-radius:999px;border:0;font-weight:800;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn.primary{flex:1;background:var(--gold);color:#1A1405}
+.btn.primary:active{transform:scale(.985)}
+.btn.quiet{flex:1;background:transparent;border:1.5px solid var(--gold);color:var(--gold-soft);cursor:default}
+.btn.ghost{background:transparent;color:var(--text);border:1.5px solid var(--edge);padding:0 20px}
+
+/* tabs */
+.tabs{margin-top:auto;position:sticky;bottom:0;z-index:5;display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);background:#0A1029;padding-bottom:env(safe-area-inset-bottom)}
+.tab{height:62px;border:0;background:transparent;color:var(--mist);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;cursor:pointer}
+.tab[aria-current="page"]{color:var(--gold)}
+
+/* sheets */
+.scrim{position:fixed;inset:0;background:rgba(3,6,20,.62);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;left:50%;bottom:0;transform:translate(-50%,102%);width:100%;max-width:430px;max-height:88dvh;overflow:auto;
+  background:#141E48;color:var(--text);border-radius:22px 22px 0 0;padding:10px 18px 28px;transition:transform .25s ease;z-index:21;
+  border-top:1px solid var(--line)
+}
+.sheet.on{transform:translate(-50%,0)}
+.grab{width:40px;height:4px;border-radius:4px;background:var(--line);margin:0 auto 10px}
+.sheet h2{margin:6px 0 4px;font-size:21px;padding-right:44px}
+.sheet h3{margin:18px 0 8px;font-size:15px;color:var(--mist);font-weight:700}
+.sheet p{margin:6px 0;line-height:1.5;color:#DCE2F7}
+.sheet .fine{font-size:13px;color:var(--mist)}
+.closebtn{position:absolute;right:8px;top:12px;width:44px;height:44px;border:0;background:transparent;color:var(--mist);font-size:24px;cursor:pointer;border-radius:50%}
+dl.rows{margin:12px 0 4px;display:grid;grid-template-columns:1fr auto;gap:0}
+dl.rows dt,dl.rows dd{margin:0;padding:11px 0;border-bottom:1px solid var(--line)}
+dl.rows dt{color:var(--mist)}
+dl.rows dd{font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.sheetbtn{margin-top:16px;width:100%;height:52px;border-radius:999px;border:0;background:var(--gold);color:#1A1405;font-weight:800;font-size:16px;cursor:pointer}
+.sheetbtn.alt{background:transparent;border:1.5px solid var(--edge);color:var(--text)}
+.plantview{display:flex;gap:14px;align-items:center;margin:8px 0 4px}
+.plantview svg{flex:none;background:#0E1636;border-radius:16px}
+.tag{display:inline-block;padding:3px 10px;border-radius:999px;border:1px solid var(--line);font-size:12.5px;color:var(--mist);margin-top:4px}
+.howlist{list-style:none;margin:10px 0 0;padding:0}
+.howlist li{display:grid;grid-template-columns:40px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:start}
+.howlist li svg{margin-top:2px}
+.howlist b{display:block}
+.howlist span{color:var(--mist);font-size:14px;line-height:1.4}
+
+/* controls + share */
+.seg{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px}
+.seg button{min-height:44px;padding:0 14px;border-radius:999px;border:1.5px solid var(--edge);background:transparent;color:var(--text);cursor:pointer;font-weight:700;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#1A1405}
+input[type=range]{width:100%;accent-color:var(--gold);height:40px}
+.toggle{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);gap:10px}
+.toggle input{width:24px;height:24px;accent-color:var(--gold)}
+.sharecard{margin-top:14px;border-radius:18px;padding:16px;background:linear-gradient(160deg,#18265C,#0E1636);border:1px solid var(--line)}
+.sharecard b{font-size:18px}
+.sharecard div{margin-top:6px;color:#DCE2F7}
+
+.toast{
+  position:fixed;left:50%;bottom:150px;transform:translate(-50%,20px);background:#F3F5FF;color:#10173A;padding:12px 16px;border-radius:14px;
+  font-weight:700;font-size:14px;opacity:0;pointer-events:none;transition:all .25s;z-index:30;max-width:min(380px,90vw);text-align:center
+}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+
+/* validator list */
+.vhead{display:flex;align-items:center;gap:4px;padding:10px 12px 2px 6px}
+.vhead h1{margin:0;font-size:20px;font-weight:800}
+.vintro{padding:2px 18px 10px;color:var(--mist);font-size:14.5px;line-height:1.45}
+.vintro button{display:block;background:none;border:0;padding:0;color:var(--gold-soft);font-weight:700;text-decoration:underline;cursor:pointer;min-height:44px;font-size:14.5px}
+.vtools{padding:0 30px 8px 16px;display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,#000 90%,transparent);mask-image:linear-gradient(90deg,#000 90%,transparent)}
+.vtools::-webkit-scrollbar{display:none}
+.chipbtn{flex:none;white-space:nowrap;min-height:44px;padding:0 14px;border-radius:999px;border:1.5px solid var(--edge);background:transparent;color:var(--text);font-weight:700;font-size:13.5px;cursor:pointer}
+.chipbtn[aria-pressed="true"]{background:var(--gold);border-color:var(--gold);color:#1A1405}
+.vsep{flex:none;width:1px;background:var(--line);margin:6px 2px}
+.vlist{margin-top:6px;border-top:1px solid var(--line)}
+.vrow{display:flex;align-items:center;border-bottom:1px solid var(--line);border-left:3px solid transparent}
+.vrow.sel{background:#19234F;border-left-color:var(--gold)}
+.vrow.dis .vpick{opacity:.55}
+.vpick{flex:1;display:flex;gap:12px;align-items:center;text-align:left;background:transparent;border:0;padding:14px 4px 14px 13px;min-height:92px;cursor:pointer;color:inherit}
+.vpick svg.soil{flex:none}
+.vmain{flex:1;min-width:0}
+.vname{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.vname b{font-size:16.5px}
+.vtag{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--gold);color:var(--gold-soft);font-weight:700}
+.vtag.cur{border-color:var(--line);color:var(--mist)}
+.vcond{font-size:14px;font-weight:700;margin-top:2px}
+.vmeta{font-size:13px;color:var(--mist);margin-top:2px;line-height:1.35}
+.vmeta span{white-space:nowrap;margin-right:10px}
+.radio{flex:none;width:24px;height:24px;border-radius:50%;border:2px solid var(--edge);display:grid;place-items:center}
+.vrow.sel .radio{border-color:var(--gold)}
+.vrow.sel .radio::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--gold)}
+.vinfo{flex:none;width:44px;height:44px;margin:0 4px 0 0;border:0;background:transparent;color:var(--mist);border-radius:50%;cursor:pointer;display:grid;place-items:center}
+.vfoot{position:sticky;bottom:63px;z-index:4;margin-top:auto;padding:10px 14px;background:#0E1638;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.vfoot p{margin:0;flex:1;font-size:13.5px;color:var(--mist);line-height:1.35}
+.vfoot p b{color:var(--text)}
+.vfoot .btn{flex:none;height:48px;padding:0 26px;font-size:16px}
+.vfoot .btn.wide{flex:1}
+.btn.primary[disabled]{opacity:.4;cursor:not-allowed}
+.skel{height:92px;margin:0 16px 10px;border-radius:14px;background:linear-gradient(90deg,#141E48 25%,#1C2860 50%,#141E48 75%);background-size:200% 100%;animation:shimmer 1.4s linear infinite}
+@keyframes shimmer{to{background-position:-200% 0}}
+.vnote{margin:0 16px 8px;padding:10px 14px;border-radius:12px;background:#19234F;border:1px solid var(--line);font-size:14px;line-height:1.4;display:flex;gap:10px;align-items:center;justify-content:space-between}
+.vempty{margin:18px 16px;padding:20px;border-radius:16px;border:1px solid var(--line);text-align:center}
+.vempty b{display:block;font-size:17px;margin-bottom:6px}
+.vempty p{margin:0 0 14px;color:var(--mist);line-height:1.45}
+.vempty .btn{margin:0 auto;height:48px;padding:0 24px}
+.fine2{padding:10px 18px 14px;font-size:12.5px;color:var(--mist)}
+
+
+/* amount screen */
+.amtpool{margin:6px 16px 4px;padding:10px 6px 10px 10px;border-radius:16px;border:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.amtpool svg.soil{flex:none;width:52px;height:52px}
+.amtpool div{flex:1;min-width:0}
+.amtpool b{display:block;font-size:16px}
+.amtpool span{font-size:13.5px;color:var(--mist)}
+.amtnote{margin:8px 18px 0;font-size:14px;color:var(--mist);line-height:1.4}
+.amtbox{padding:16px 18px 4px}
+.amtlabel{display:block;font-size:14px;color:var(--mist);margin-bottom:6px}
+.amtfield{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--edge);padding-bottom:6px}
+.amtfield:focus-within{border-bottom-color:var(--gold)}
+.amtfield input{flex:1;min-width:0;background:transparent;border:0;color:var(--text);font:inherit;font-size:40px;font-weight:800;padding:4px 0;outline:none;font-variant-numeric:tabular-nums}
+.amtfield input::placeholder{color:var(--edge)}
+.amtfield span{font-size:18px;font-weight:800;color:var(--mist)}
+.amtmeta{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:10px;font-size:14px;color:var(--mist)}
+.amtchips{display:flex;gap:6px}
+.amtchips .chipbtn{min-height:44px;padding:0 12px;font-size:13px}
+.amterr{min-height:22px;margin:8px 0 0;color:#FFB4A8;font-size:14px;font-weight:700}
+.preview{margin:6px 16px 0;padding:14px;border-radius:16px;border:1px solid var(--line);display:flex;gap:12px;align-items:center;min-height:132px}
+.preview svg{flex:none;width:44%;height:auto}
+.preview div{flex:1;min-width:0;font-size:14px;color:var(--mist);line-height:1.4}
+.preview b{display:block;color:var(--text);font-size:18px;margin-bottom:2px}
+.estline{margin:10px 18px 0;font-size:14px;color:var(--mist);line-height:1.4}
+.estline b{color:var(--text)}
+.spin{width:44px;height:44px;border-radius:50%;border:4px solid var(--line);border-top-color:var(--gold);margin:18px auto;animation:spin2 1s linear infinite}
+@keyframes spin2{to{transform:rotate(360deg)}}
+.statusic{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;margin:14px auto 6px;background:#1D2A62;color:var(--gold-soft)}
+.centered{text-align:center}
+
+
+/* stake management */
+.steps{list-style:none;margin:10px 16px 0;padding:0}
+.steps li{display:grid;grid-template-columns:32px 1fr;gap:12px;padding:12px 0;position:relative}
+.steps li:not(:last-child)::before{content:"";position:absolute;left:15px;top:42px;bottom:-6px;width:2px;background:var(--line)}
+.stepdot{width:30px;height:30px;border-radius:50%;border:2px solid var(--edge);display:grid;place-items:center;color:#1A1405}
+.steps li.done .stepdot{background:var(--gold);border-color:var(--gold)}
+.steps li.cur .stepdot{border-color:var(--gold)}
+.steps li.cur .stepdot::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--gold)}
+.steps li.todo{opacity:.8}
+.steps b{display:block;font-size:16px;margin-bottom:2px}
+.steps .d{color:var(--mist);font-size:14px;line-height:1.4}
+.sr{position:absolute;left:-9999px}
+.bodybtn{margin:10px 16px 0;width:calc(100% - 32px)}
+.stakehead{margin:4px 18px 0;font-size:14px;color:var(--mist)}
+.chipstat{flex:none;padding:5px 12px;border-radius:999px;border:1px solid var(--line);font-size:13px;color:var(--mist);white-space:nowrap}
+.chipstat.on{border-color:var(--gold);color:var(--gold-soft)}
+
+
+.portions{margin:8px 0 0;border-top:1px solid var(--line)}
+.portion{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.portion b{display:block;font-size:16px}
+.portion span{font-size:13.5px;color:var(--mist)}
+.portion strong{font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.stepnum{font-size:13px;font-weight:800;color:var(--mist)}
+.stopchips{display:flex;gap:8px;margin-top:10px}
+.stopchips .chipbtn{flex:1;padding:0}
+.stopsum{min-height:44px;font-size:14.5px;color:var(--mist);line-height:1.45}
+.stopsum b{color:var(--text)}
+
+
+/* intro */
+.intro{flex:1;display:flex;flex-direction:column;padding-bottom:max(18px,env(safe-area-inset-bottom))}
+.introtop{display:flex;justify-content:space-between;align-items:center;padding:10px 10px 0 16px;min-height:56px}
+.skip{min-height:44px;padding:0 14px;border:0;background:transparent;color:var(--mist);font-weight:700;font-size:15px;cursor:pointer;border-radius:12px}
+.introbody{flex:1;display:flex;flex-direction:column;animation:introIn .35s ease}
+@keyframes introIn{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+.introhero{display:grid;place-items:center;padding:6px 20px 0}
+.introtitle{font-size:29px;font-weight:800;line-height:1.15;margin:14px 22px 10px}
+.introtext{margin:0 22px;color:var(--mist);font-size:16.5px;line-height:1.5}
+.introlist{list-style:none;margin:10px 22px 0;padding:0}
+.introlist li{display:grid;grid-template-columns:40px 1fr;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);align-items:start}
+.introlist li:last-child{border-bottom:0}
+.introlist li svg{color:var(--gold);margin-top:2px}
+.introlist b{display:block;font-size:17px;margin-bottom:2px}
+.introlist span{color:var(--mist);font-size:15px;line-height:1.45}
+.dots{display:flex;gap:8px;justify-content:center;margin:20px 0 16px}
+.dot{width:8px;height:8px;border-radius:6px;background:var(--edge);transition:all .25s}
+.dot.on{background:var(--gold);width:24px}
+.introact{display:flex;gap:10px;padding:0 16px}
+.introact .btn{flex:1}
+.introact .btn.ghost{flex:none}
+
+/* collection */
+.sect{margin:14px 18px 8px;font-size:15px;color:var(--mist);font-weight:700}
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px}
+.ccard{border:1px solid var(--line);border-radius:18px;background:transparent;padding:12px 12px 14px;text-align:left;color:inherit;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-height:184px}
+.ccard svg{width:100%;height:auto;max-height:110px}
+.ccard b{font-size:16px;margin-top:2px}
+.ccard span.s{font-size:13.5px;color:var(--mist);line-height:1.35}
+.ccard:not(.locked) span.s{color:var(--gold-soft);font-weight:700}
+.pl{filter:grayscale(1) brightness(.42)}
+.pbar{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin-top:4px}
+.pbar i{display:block;height:100%;background:var(--gold);border-radius:6px}
+.stages{display:flex;gap:10px;overflow-x:auto;margin:14px 0 6px;padding-bottom:4px}
+.stg{flex:none;text-align:center;font-size:12px;color:var(--mist)}
+.stg svg{display:block;background:#0E1636;border-radius:14px;margin-bottom:4px}
+
+
+/* progress */
+.phero{margin:6px 18px 0}
+.phero small{display:block;color:var(--mist);font-size:13.5px}
+.phero b{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.phero b i{font-style:normal;font-size:18px;color:var(--mist);margin-left:6px;font-weight:700}
+.phero span{display:block;color:var(--mist);font-size:14px;margin-top:2px}
+.psec{margin:22px 18px 8px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.psec h2{margin:0;font-size:17px}
+.prange{display:flex;gap:6px}
+.prange .chipbtn{min-height:44px;padding:0 12px;font-size:13px}
+.cap{margin:0 18px 8px;font-size:14px;color:var(--mist);min-height:20px}
+.cap b{color:var(--text)}
+.chart{margin:0 16px}
+.chart svg{width:100%;height:auto;display:block}
+.chart svg rect{cursor:pointer}
+.axis{display:flex;justify-content:space-between;margin:4px 18px 0;font-size:12px;color:var(--mist)}
+.plist{margin:0 16px;border-top:1px solid var(--line)}
+.prow{display:flex;justify-content:space-between;align-items:center;padding:13px 2px;border-bottom:1px solid var(--line);font-size:15px}
+.prow span{color:var(--mist)}
+.prow b{color:var(--gold-soft);font-variant-numeric:tabular-nums}
+.strk{margin:0 18px;display:flex;align-items:baseline;gap:8px}
+.strk b{font-size:34px}
+.strk span{color:var(--mist);font-size:14px}
+.week{display:flex;justify-content:space-between;margin:12px 22px 0}
+.wd{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:var(--mist)}
+.wd i{width:34px;height:34px;border-radius:50%;border:2px solid var(--edge);display:grid;place-items:center;font-style:normal;color:#1A1405}
+.wd.on i{background:var(--gold);border-color:var(--gold)}
+.wd.today i{border-color:var(--gold-soft)}
+.nextun{margin:0 16px;padding:14px;border-radius:16px;border:1px solid var(--line);display:flex;gap:12px;align-items:center}
+.nextun svg{flex:none;width:64px;height:62px}
+.nextun div{flex:1;min-width:0}
+.nextun b{display:block;font-size:16px}
+.nextun span{display:block;color:var(--mist);font-size:13.5px;line-height:1.4}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="mockbar"><span>Interactive mockup. Sample data only.</span><button class="mockbtn" data-act="controls">Change demo state</button></div>
+  <main class="phone" id="app"></main>
+</div>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const $ = (s, r=document) => r.querySelector(s);
+
+/* ---------- icons ---------- */
+const svgIc = (d, size=22, extra='') =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${d}</svg>`;
+const IC = {
+  drop: svgIc('<path d="M12 3s6 6.2 6 10.5A6 6 0 0 1 6 13.5C6 9.2 12 3 12 3z"/>'),
+  dropSm: svgIc('<path d="M12 3s6 6.2 6 10.5A6 6 0 0 1 6 13.5C6 9.2 12 3 12 3z"/>', 16),
+  on: svgIc('<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/>'),
+  off: svgIc('<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9l5 6M22 9l-5 6"/>'),
+  share: svgIc('<path d="M12 3v12"/><path d="M7.5 7.5 12 3l4.5 4.5"/><path d="M5 12v7h14v-7"/>'),
+  help: svgIc('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.6 2.4c-.7.4-1.1.9-1.1 1.6"/><path d="M12 17h.01"/>'),
+  garden: svgIc('<path d="M12 3l7.5 4.3v8.4L12 20l-7.5-4.3V7.3z"/><path d="M12 15V9"/>'),
+  stake: svgIc('<ellipse cx="12" cy="7" rx="7" ry="3"/><path d="M5 7v5c0 1.7 3.1 3 7 3s7-1.3 7-3V7"/><path d="M5 12v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5"/>'),
+  collection: svgIc('<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>'),
+  progress: svgIc('<path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 15l4-4 3 3 5-6"/>'),
+  flame: svgIc('<path d="M12 3c1 3.5 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3.2 2-4 .2 1.2.8 2 1.6 2.3C10.2 8.6 10.6 5.8 12 3z"/>', 18),
+  check: svgIc('<path d="M5 12.5l4.5 4.5L19 7.5"/>', 16),
+  logo: `<svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8.5 5v10L12 22l-8.5-5V7z" fill="#F6B221"/><path d="M12 7.5c-2.4 1.7-2.4 5 0 7.8 2.4-2.800 2.4-6.100 0-7.800z" fill="#0B1230"/></svg>`
+};
+
+/* ---------- data ---------- */
+const SP = {
+  daisy:{name:'Daisy',color:'#FFD66B',rare:0},
+  fern:{name:'Glow fern',color:'#6EE0B0',rare:0},
+  sprig:{name:'Sprig tree',color:'#7BD88F',rare:0},
+  tulip:{name:'Dusk tulip',color:'#A895FF',rare:7},
+  lotus:{name:'Moon lotus',color:'#FF9DBB',rare:14},
+  hexbloom:{name:'Hexbloom',color:'#F6B221',rare:30}
+};
+const STAGE = ['Seed','Sprout','Leafy','Flourishing','Mature'];
+const LAYOUT = {1:[1],3:[2,1],7:[2,3,2],12:[3,4,3,2],19:[3,4,5,4,3]};
+const AMT = {1:1000,3:5000,7:25000,12:100000,19:400000};
+const COND = {
+  sunny:{name:'Sunny',line:'Reliable pool',msg:'Your validator has been reliable recently.',score:'96 out of 100',fee:'4%',share:'2.8%',fill:'#1D3B38',stroke:'#F6B22199'},
+  cloudy:{name:'Cloudy',line:'Worth watching',msg:'Your validator is working, but its recent reliability or fee is worth a second look.',score:'78 out of 100',fee:'8%',share:'7.5%',fill:'#243447',stroke:'#8FA3C799'},
+  stormy:{name:'Stormy',line:'Reliability dropped',msg:'Your validator has been less reliable recently. Compare other pools before you stake more.',score:'41 out of 100',fee:'5%',share:'1.1%',fill:'#352F33',stroke:'#A38585AA'},
+  dusk:{name:'Dusk',line:"Can't check right now",msg:"We can't reach validator data right now. Your stake isn't affected, and the app will check again shortly.",score:null,fee:null,share:null,fill:'#1B2347',stroke:'#6F7DB877'}
+};
+
+const S = {prange:30,pbar:null,pstate:'ok',introSeen:false,introStep:0,bestStreak:0,bestRewards:0,pWait:0,pReady:0,stopAmt:'',sstate:'ok',released:false,waitLeft:'1 day 6 hours',amount:'',result:'confirmed',stakedAmt:null,fresh:false,screen:'home',vsel:null,vfilter:'direct',vsort:'rec',vstate:'ok',mode:'active',cond:'sunny',plots:7,rewards:2.4,streak:7,watered:false,sound:false,banner:true,
+  share:{amounts:false,streak:true,plants:true,rewards:true,badge:true}};
+
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const ROLLS = (()=>{const r=rng(20261030);return Array.from({length:19},()=>r())})();
+const fmt = n => Math.round(n).toLocaleString('en-US');
+
+function allowed(){const a=Object.keys(SP).filter(k=>unlockInfo(k).done); return a.length?a:['daisy']}
+function speciesFor(i){const a=allowed();return a[Math.floor(ROLLS[i]*a.length)]}
+function stageFor(i){
+  if(S.mode==='first') return 0;
+  const eff = S.rewards - i*0.35;
+  return eff<=0?0: eff<0.5?1: eff<2?2: eff<5?3:4;
+}
+function view(){
+  if(S.mode==='first') return {key:'dusk',name:'Ready',line:'Pick a validator to begin',tile:COND.dusk,state:'first'};
+  if(S.mode==='dormant'||S.mode==='ready') return {key:'dusk',name:'Resting',line:S.mode==='ready'?'Ready to withdraw':'Not earning',tile:{fill:'#1A2140',stroke:'#6F7DB877'},state:'dormant'};
+  const c=COND[S.cond];
+  return {key:S.cond,name:c.name,line:c.line,tile:c,state:'active'};
+}
+
+/* ---------- plants ---------- */
+const hexPts=(r,cx=0,cy=0)=>Array.from({length:6},(_,k)=>{const a=(Math.PI/180)*(60*k-90);return (cx+r*Math.cos(a)).toFixed(2)+','+(cy+r*Math.sin(a)).toFixed(2)}).join(' ');
+function plantSVG(sp,stage){
+  if(stage===0) return `<g class="seedglow"><ellipse cx="0" cy="6" rx="8" ry="3" fill="#00000050"/><circle cx="0" cy="3.5" r="3.8" fill="#F6B221"/><circle cx="0" cy="3.5" r="7" fill="#F6B221" opacity=".18"/></g>`;
+  const H=[0,9,19,27,34][stage], col=SP[sp].color, g='#4FB88A', top=6-H;
+  let s=`<ellipse cx="0" cy="6" rx="9" ry="3" fill="#00000045"/>`;
+  const stem=`<path d="M0 6 L0 ${top}" stroke="${g}" stroke-width="2.4" stroke-linecap="round"/>`;
+  const leaf=(x,y,rot,rx=4.2,ry=1.9)=>`<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" transform="rotate(${rot} ${x} ${y})" fill="${g}"/>`;
+  if(stage===1) return s+stem+leaf(-3.5,top+2,-30,3.6,1.7)+leaf(3.5,top+3,30,3.6,1.7);
+  if(sp==='sprig'){
+    const cr=[0,0,7,9.5,12][stage], trunk=H*0.45, cy=6-trunk-cr*0.55;
+    s+=`<rect x="-1.8" y="${6-trunk}" width="3.6" height="${trunk}" rx="1.5" fill="#8C6B4F"/>`;
+    s+=`<circle cx="${-cr*0.55}" cy="${cy+cr*0.25}" r="${cr*0.75}" fill="#5FC27A"/><circle cx="${cr*0.55}" cy="${cy+cr*0.25}" r="${cr*0.75}" fill="#5FC27A"/><circle cx="0" cy="${cy}" r="${cr}" fill="${col}"/>`;
+    if(stage===4) s+=`<circle cx="${-cr*0.3}" cy="${cy-cr*0.2}" r="1.6" fill="#F6B221"/><circle cx="${cr*0.35}" cy="${cy+cr*0.1}" r="1.6" fill="#F6B221"/><circle cx="0" cy="${cy-cr*0.55}" r="1.4" fill="#FFD36B"/>`;
+    return s;
+  }
+  if(sp==='fern'){
+    s+=`<path d="M0 6 Q2.5 ${6-H*0.5} 0 ${top}" stroke="${g}" stroke-width="2.2" fill="none" stroke-linecap="round"/>`;
+    const n=stage+1;
+    for(let k=1;k<=n;k++){const y=6-H*k/(n+1), r=2.6+stage*0.7; s+=leaf(-r-1,y,-35,r+1.5,1.7).replace(g,col)+leaf(r+1,y,35,r+1.5,1.7).replace(g,col);}
+    s+=`<circle cx="0" cy="${top-1}" r="${2+stage*0.3}" fill="${col}"/>`;
+    if(stage===4) s+=`<circle cx="0" cy="${top-1}" r="9" fill="${col}" opacity=".2"/>`;
+    return s;
+  }
+  s+=stem+leaf(-4.5,6-H*0.35,-30)+leaf(4.5,6-H*0.5,30);
+  const fy=top, sc=[0,0,0.7,1,1.25][stage];
+  if(stage===4) s+=`<circle cx="0" cy="${fy}" r="15" fill="${col}" opacity=".2"/>`;
+  if(stage===2) return s+`<circle cx="0" cy="${fy}" r="3.2" fill="${col}"/>`;
+  s+=`<g transform="translate(0 ${fy}) scale(${sc})">`;
+  if(sp==='daisy'){
+    for(let k=0;k<8;k++){const a=k*45*Math.PI/180;s+=`<circle cx="${(6*Math.cos(a)).toFixed(2)}" cy="${(6*Math.sin(a)).toFixed(2)}" r="3.4" fill="${col}"/>`}
+    s+=`<circle r="3.6" fill="#E07A2F"/>`;
+  } else if(sp==='lotus'){
+    [-62,-31,0,31,62].forEach(a=>{s+=`<path d="M0 0 C-4 -4 -4 -10 0 -13 C4 -10 4 -4 0 0z" transform="rotate(${a})" fill="${col}" stroke="#FFFFFF33" stroke-width=".6"/>`});
+    s+=`<circle r="2.2" fill="#FFE9A8"/>`;
+  } else if(sp==='tulip'){
+    s+=`<path d="M-7 -6 C-7 3 -3 6 0 6 C3 6 7 3 7 -6 L3.5 -2 L0 -9 L-3.5 -2z" fill="${col}"/><path d="M0 -9 L0 5" stroke="#FFFFFF44" stroke-width=".8"/>`;
+  } else {
+    for(let k=0;k<6;k++){const a=(60*k-90)*Math.PI/180;s+=`<polygon points="${hexPts(3.4,6.4*Math.cos(a),6.4*Math.sin(a))}" fill="${col}"/>`}
+    s+=`<polygon points="${hexPts(3.6)}" fill="#FFF1C2"/>`;
+  }
+  return s+`</g>`;
+}
+
+/* ---------- sky ---------- */
+function skyScene(key){
+  if(key==='sunny'){
+    let rays=''; for(let k=0;k<12;k++){rays+=`<line x1="292" y1="14" x2="292" y2="24" stroke="#FFE08A" stroke-width="2.4" stroke-linecap="round" transform="rotate(${k*30} 292 52)" opacity=".8"/>`}
+    return `<g class="rays">${rays}</g><circle cx="292" cy="52" r="34" fill="#FFD36B" opacity=".22"/><circle cx="292" cy="52" r="19" fill="#FFD36B"/>`;
+  }
+  const cloud=(x,y,s,col,cls)=>`<g class="cloud ${cls||''}"><g transform="translate(${x} ${y}) scale(${s})" fill="${col}"><ellipse cx="0" cy="0" rx="30" ry="11"/><circle cx="-10" cy="-9" r="11"/><circle cx="9" cy="-13" r="14"/></g></g>`;
+  if(key==='cloudy') return `<circle cx="300" cy="46" r="16" fill="#FFD36B" opacity=".35"/>${cloud(250,60,1.2,'#8FA0C2')}${cloud(120,92,1,'#6F82A8','b')}${cloud(320,100,.8,'#7D90B5')}`;
+  if(key==='stormy'){
+    let rain=''; for(let k=0;k<16;k++){const x=20+k*22+(k%3)*5; rain+=`<line class="rainline" x1="${x}" y1="52" x2="${x-4}" y2="64" stroke="#9FB5E8" stroke-width="1.6" stroke-linecap="round" style="animation-delay:${(k*0.17).toFixed(2)}s"/>`}
+    return `${cloud(110,48,1.5,'#3B3858')}${cloud(260,40,1.7,'#4A4570','b')}${cloud(200,62,1.3,'#322F4F')}${rain}`;
+  }
+  let stars=''; [[40,30],[90,70],[150,24],[210,58],[250,22],[330,44],[360,84],[60,104]].forEach((p,k)=>{stars+=`<circle class="star" cx="${p[0]}" cy="${p[1]}" r="${k%2?1.4:1.9}" fill="#DCE4FF" style="animation-delay:${k*0.5}s"/>`});
+  return `${stars}<path d="M296 28a22 22 0 1 0 14 38 18 18 0 0 1-14-38z" fill="#F4E9BF" opacity=".92"/>`;
+}
+
+/* ---------- garden ---------- */
+function gardenHTML(v){
+  const rows = S.mode==='first' ? [1] : LAYOUT[S.plots];
+  const W=360,H=290,pad=14,sq=Math.sqrt(3);
+  const maxRow=Math.max(...rows);
+  const R=Math.min(54,(W-2*pad)/(maxRow*sq),(H-2*pad-30)/((rows.length-1)*1.5+2));
+  const w=sq*R, gridH=(rows.length-1)*1.5*R+2*R, top=(H-gridH)/2+R+14;
+  const k=R/40;
+  let idx=0, out='';
+  rows.forEach((n,ri)=>{
+    const y=top+ri*1.5*R;
+    for(let j=0;j<n;j++){
+      const x=W/2+(j-(n-1)/2)*w, i=idx++;
+      const st=stageFor(i), sp=speciesFor(i);
+      const label = S.mode==='first' ? 'Empty plot. Plant your first stake.' : `${SP[sp].name}, ${STAGE[st].toLowerCase()}. Open details.`;
+      let decor='';
+      if(v.key==='sunny'&&v.state==='active') decor=`<circle cx="${x-R*.3}" cy="${y+R*.45}" r="1.6" fill="#356B60"/><circle cx="${x+R*.35}" cy="${y+R*.5}" r="1.4" fill="#356B60"/><circle cx="${x+R*.05}" cy="${y+R*.62}" r="1.2" fill="#356B60"/>`;
+      if(v.key==='stormy'&&v.state==='active') decor=`<path d="M${x-R*.5} ${y+R*.55} l${R*.25} -${R*.12} l${R*.15} ${R*.14} l${R*.2} -${R*.1}" stroke="#1B1719" stroke-width="1.3" fill="none"/>`;
+      out+=`<g class="plot" tabindex="0" role="button" data-act="plot" data-i="${i}" aria-label="${label}">
+        <polygon class="tile" points="${hexPts(R*0.94,x,y)}" fill="${v.tile.fill}" stroke="${v.tile.stroke}" stroke-width="1.6"/>${decor}
+        <g transform="translate(${x.toFixed(1)} ${(y+R*0.26).toFixed(1)}) scale(${(k*1.3).toFixed(3)})"><g class="plant">${plantSVG(sp,st)}</g></g></g>`;
+    }
+  });
+  const cls = v.state==='dormant' ? 'rest' : (v.state==='active' ? (S.watered?'watered':'thirsty') : '');
+  return `<section class="garden" aria-label="Your garden">
+    <div class="sky ${v.key}"><svg viewBox="0 0 360 200" preserveAspectRatio="xMidYMin slice" aria-hidden="true">${skyScene(v.key)}</svg></div>
+    <button class="skylabel" data-act="sky" aria-label="Garden conditions: ${v.name}, ${v.line}. Open details."><b>${v.name}</b><span>${v.line}</span></button>
+    <svg class="plots ${cls}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMax meet" role="group" aria-label="Your garden, ${S.mode==='first'?'no plants yet':S.plots+' plots'}">${out}</svg>
+  </section>`;
+}
+
+/* ---------- main render ---------- */
+function renderHome(){
+  const v=view(), amt=total(), earned=amt*S.rewards/100;
+  const wa=S.watered;
+  const strip = S.mode==='first' ? `<div class="strip"><span class="streak" style="color:var(--mist);font-weight:600">No garden yet</span><span class="chip">New here</span></div>` : `
+    <div class="strip">
+      <span class="streak">${IC.flame}${S.streak>0 ? S.streak+'-day streak' : (wa ? '1-day streak' : (S.fresh ? 'Start your streak' : 'Streak reset'))}</span>
+      ${(S.mode==='dormant'||S.mode==='ready') ? `<span class="chip">${S.mode==='ready'?'Ready to withdraw':'Stopped earning'}</span>` : (wa ? `<span class="chip ok">${IC.check}Watered today</span>` : `<span class="chip">${IC.dropSm}Needs water</span>`)}
+    </div>`;
+  let banner='';
+  if(S.mode==='active' && (S.cond==='cloudy'||S.cond==='stormy') && S.banner){
+    const storm=S.cond==='stormy';
+    banner=`<div class="banner ${storm?'storm':''}" role="status"><p>${storm?"Your validator's reliability has dropped.":'Clouds are gathering over your validator.'}<span>Compare other pools before your next stake.</span></p><button class="linkbtn" data-act="alt">See other pools</button><button class="xbtn" data-act="dismiss" aria-label="Dismiss">×</button></div>`;
+  }
+  if(S.mode!=='first' && (S.pWait>0||S.pReady>0) && S.banner){
+    const x='<button class="xbtn" data-act="dismiss" aria-label="Dismiss">×</button>';
+    banner = S.pReady>0
+      ? `<div class="banner" role="status"><p>${fmt(S.pReady)} NIM is ready to withdraw.<span>${S.released?'One approval left.':(S.pWait>0?fmt(S.pWait)+' NIM is still waiting.':'It takes two quick approvals.')}</span></p><button class="linkbtn" data-act="dowithdraw">${S.released?'Finish':'Withdraw'}</button>${x}</div>`
+      : `<div class="banner" role="status"><p>${fmt(S.pWait)} NIM has stopped earning.<span>Withdrawing opens in about ${S.waitLeft}. You can reactivate until then.</span></p><button class="linkbtn" data-act="status">See status</button>${x}</div>`;
+  }
+  let stats='';
+  if(S.mode==='first') stats=`<p class="empty">Choose a validator, pick an amount, and plant your first seed. Your garden grows as your stake earns rewards.</p>`;
+  else stats=`<div class="stats">
+      <div class="stat"><small>Staked</small><b class="${fmt(amt).length>=7?'sm':''}">${fmt(amt)}<i>NIM</i></b></div>
+      <div class="stat"><small>Earned</small><b>${fmt(earned)}<i>NIM</i></b></div>
+      ${(S.mode==='dormant'||S.mode==='ready') ? `<div class="stat"><small>Status</small><b>${S.mode==='ready'?'Ready':'Stopped'}</b></div>` : `<div class="stat"><small>Next reward</small><b>≈ 4 h</b></div>`}
+    </div>`;
+  let actions='';
+  if(S.mode==='first') actions=`<button class="btn primary" data-act="first">Plant your first stake</button>`;
+  else if(S.mode==='dormant') actions=`<button class="btn primary" data-act="reactivate">Reactivate stake</button><button class="btn ghost" data-act="status">Status</button>`;
+  else if(S.mode==='ready') actions=`<button class="btn primary" data-act="dowithdraw">${S.released?'Finish withdrawing':'Withdraw'}</button>`;
+  else if(!wa) actions=`<button class="btn primary" data-act="water">${IC.drop}Water garden</button>`;
+  else actions=`<button class="btn quiet" aria-disabled="true" tabindex="-1">${IC.check}Watered</button><button class="btn ghost" data-act="addstake">Add stake</button>`;
+
+  $('#app').innerHTML = `
+    <header class="top">
+      <div class="brand">${IC.logo}Hexgrove</div>
+      <div class="icons">
+        <button class="ibtn" data-act="sound" aria-pressed="${S.sound}" aria-label="${S.sound?'Mute sound':'Turn sound on'}">${S.sound?IC.on:IC.off}</button>
+        <button class="ibtn" data-act="share" aria-label="Share your garden">${IC.share}</button>
+        <button class="ibtn" data-act="help" aria-label="How your garden grows">${IC.help}</button>
+      </div>
+    </header>
+    ${strip}${banner}
+    ${gardenHTML(v)}
+    ${stats}
+    <div class="actions">${actions}</div>
+    ${tabsHTML('garden')}`;
+}
+
+
+/* ---------- tabs + navigation ---------- */
+function tabsHTML(active){
+  const t=(k,ic,label)=>`<button class="tab" ${active===k?'aria-current="page"':''} data-act="tab" data-tab="${k}">${ic}${label}</button>`;
+  return `<nav class="tabs" aria-label="Main">${t('garden',IC.garden,'Garden')}${t('stake',IC.stake,'Stake')}${t('collection',IC.collection,'Collection')}${t('progress',IC.progress,'Progress')}</nav>`;
+}
+function render(){
+  bests();
+  if(S.mode==='first' && !S.introSeen && S.screen==='home'){ S.screen='intro'; S.introStep=0; }
+  if(S.screen==='intro') renderIntro();
+  else if(S.screen==='collection') renderCollection();
+  else if(S.screen==='progress') renderProgress();
+  else if(S.screen==='validators') renderValidators();
+  else if(S.screen==='amount') renderAmount();
+  else if(S.screen==='stake') renderStake();
+  else renderHome();
+}
+function go(screen){
+  if(screen==='stake' && S.mode==='first') screen='validators';
+  S.screen=screen;
+  if(screen==='validators'){ S.vsel = S.mode==='first' ? null : (S.vsel||'orchard'); }
+  render(); window.scrollTo(0,0);
+}
+
+/* ---------- validator list ---------- */
+const VALS=[
+  {id:'orchard',name:'Orchard Pool',score:96,fee:4,pay:'direct',share:2.8,ok:true},
+  {id:'lakeside',name:'Lakeside Validators',score:92,fee:6,pay:'direct',share:4.1,ok:true},
+  {id:'northridge',name:'North Ridge Pool',score:88,fee:3,pay:'direct',share:12.5,ok:true},
+  {id:'hollow',name:'Hollow Pine',score:90,fee:5,pay:'direct',share:1.9,ok:false},
+  {id:'quiet',name:'Quiet Harbor',score:78,fee:8,pay:'direct',share:7.5,ok:true},
+  {id:'maple',name:'Maple Court',score:null,fee:4,pay:'direct',share:0.9,ok:true},
+  {id:'westgate',name:'Westgate Pool',score:41,fee:5,pay:'direct',share:1.1,ok:true},
+  {id:'sunfield',name:'Sunfield Staking',score:95,fee:5,pay:'restake',share:3.2,ok:true}
+];
+const vCond=v=>v.score==null?'dusk':(v.score>=85?'sunny':v.score>=60?'cloudy':'stormy');
+const vRec=v=>v.ok&&v.score!=null&&v.score>=85&&v.fee<=6&&v.pay==='direct'&&v.share<10;
+const vApy=v=>(10.6*(1-v.fee/100)).toFixed(1);
+function vList(){
+  const l=VALS.filter(v=>S.vfilter==='all'||v.pay==='direct');
+  const by={
+    rec:(a,b)=>(vRec(b)-vRec(a))||((b.score??-1)-(a.score??-1)),
+    rel:(a,b)=>((b.score??-1)-(a.score??-1)),
+    fee:(a,b)=>a.fee-b.fee
+  };
+  return l.sort(by[S.vsort]);
+}
+function soilSample(cond){
+  const sky={sunny:'#2C509A',cloudy:'#34436A',stormy:'#262345',dusk:'#18205A'}[cond], cd=COND[cond];
+  let deco='';
+  if(cond==='sunny') deco='<circle cx="49" cy="14" r="7" fill="#FFD36B"/>';
+  if(cond==='cloudy') deco='<g fill="#8FA0C2"><ellipse cx="46" cy="16" rx="11" ry="4.5"/><circle cx="42" cy="12" r="5"/><circle cx="50" cy="10" r="6"/></g>';
+  if(cond==='stormy') deco='<g fill="#4A4570"><ellipse cx="44" cy="12" rx="13" ry="5"/><circle cx="40" cy="8" r="6"/></g><g stroke="#9FB5E8" stroke-width="1.4" stroke-linecap="round"><line x1="38" y1="20" x2="36" y2="25"/><line x1="46" y1="20" x2="44" y2="25"/><line x1="52" y1="20" x2="50" y2="25"/></g>';
+  if(cond==='dusk') deco='<circle cx="10" cy="9" r="1.2" fill="#DCE4FF"/><circle cx="26" cy="15" r="1" fill="#DCE4FF"/><path d="M50 7a7 7 0 1 0 4.5 12 5.8 5.8 0 0 1-4.5-12z" fill="#F4E9BF"/>';
+  return `<svg class="soil" width="64" height="64" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="${sky}"/>${deco}<polygon points="${hexPts(21,32,42)}" fill="${cd.fill}" stroke="${cd.stroke}" stroke-width="1.4"/><g transform="translate(32 45) scale(.62)">${plantSVG('daisy',cond==='stormy'?1:3)}</g></svg>`;
+}
+function vRow(v){
+  const c=vCond(v), cd=COND[c], sel=S.vsel===v.id, cur=S.mode!=='first'&&v.id==='orchard';
+  const tags=(vRec(v)?'<span class="vtag">Recommended</span>':'')+(cur?'<span class="vtag cur">Current</span>':'');
+  const pay=v.pay==='direct'?'Rewards paid to your wallet':'Rewards compound into your stake';
+  const last = !v.ok ? 'Not accepting stake right now' : (v.share>=10 ? 'Large share of the network' : pay);
+  return `<div class="vrow ${sel?'sel':''} ${v.ok?'':'dis'}">
+    <button class="vpick" role="radio" aria-checked="${sel}" ${v.ok?'':'aria-disabled="true"'} data-act="vsel" data-id="${v.id}" aria-label="${v.name}. ${cd.name}, ${cd.line}. Fee ${v.fee} percent.">
+      ${soilSample(c)}
+      <span class="vmain">
+        <span class="vname"><b>${v.name}</b>${tags}</span>
+        <span class="vcond" style="display:block">${cd.name}: ${cd.line.toLowerCase()}</span>
+        <span class="vmeta" style="display:block"><span>Fee ${v.fee}%</span><span>about ${vApy(v)}% a year</span></span>
+        <span class="vmeta" style="display:block">${last}</span>
+      </span>
+      <span class="radio" aria-hidden="true"></span>
+    </button>
+    <button class="vinfo" data-act="vinfo" data-id="${v.id}" aria-label="Details for ${v.name}">${svgIc('<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>',22)}</button>
+  </div>`;
+}
+function renderValidators(){
+  const first=S.mode==='first';
+  const sel=VALS.find(v=>v.id===S.vsel);
+  let body='';
+  if(S.vstate==='loading') body=Array.from({length:5},()=>'<div class="skel"></div>').join('');
+  else if(S.vstate==='error') body=`<div class="vempty"><b>Can't load validators</b><p>Check your connection and try again. Your stake isn't affected.</p><button class="btn primary" data-act="vretry">Try again</button></div>`;
+  else {
+    const note = S.vstate==='cached' ? `<div class="vnote"><span>Showing your last saved list from 2 hours ago.</span><button class="linkbtn" data-act="vretry">Refresh</button></div>` : '';
+    body = note + `<div class="vlist" role="radiogroup" aria-label="Validators">${vList().map(vRow).join('')}</div>`;
+  }
+  let foot='';
+  if(sel&&S.vstate!=='error'&&S.vstate!=='loading'){
+    const c=vCond(sel), cd=COND[c];
+    const warn = (c==='stormy'||c==='dusk') ? `<br>Your garden would start ${cd.name.toLowerCase()}. You can still choose it.` : '';
+    foot=`<div class="vfoot"><p><b>${sel.name}</b><br>${cd.name}: ${cd.line.toLowerCase()}${warn}</p><button class="btn primary" data-act="vcontinue">Continue</button></div>`;
+  } else if(S.vstate!=='error') {
+    foot=`<div class="vfoot"><p>Pick a validator to continue.</p><button class="btn primary" disabled>Continue</button></div>`;
+  }
+  $('#app').innerHTML=`
+    <header class="vhead">
+      <button class="ibtn" data-act="back" aria-label="Back to garden">${svgIc('<path d="M15 5l-7 7 7 7"/>')}</button>
+      <h1>${first?'Choose a validator':'Compare validators'}</h1>
+    </header>
+    <p class="vintro">Your validator's reliability sets the weather in your garden. ${first?'':'Switching pools can take a few steps. '}<button data-act="vcriteria">How Recommended works</button></p>
+    <div class="vtools" role="group" aria-label="Filter and sort">
+      <button class="chipbtn" data-act="vfilter" data-val="direct" aria-pressed="${S.vfilter==='direct'}">Paid to wallet</button>
+      <button class="chipbtn" data-act="vfilter" data-val="all" aria-pressed="${S.vfilter==='all'}">All pools</button>
+      <span class="vsep"></span>
+      <button class="chipbtn" data-act="vsort" data-val="rec" aria-pressed="${S.vsort==='rec'}">Recommended</button>
+      <button class="chipbtn" data-act="vsort" data-val="rel" aria-pressed="${S.vsort==='rel'}">Reliability</button>
+      <button class="chipbtn" data-act="vsort" data-val="fee" aria-pressed="${S.vsort==='fee'}">Lowest fee</button>
+    </div>
+    ${body}
+    <p class="fine2">Sample data. Scores, fees and yields will come from Nimiq's validator data. Yields are estimates, not promises.</p>
+    ${foot}
+    ${tabsHTML('stake')}`;
+}
+function criteriaSheet(){
+  openSheet(`<h2 id="sheetTitle">How Recommended works</h2>
+    <p>A pool gets the Recommended tag when it meets all of these (sample thresholds):</p>
+    <ul class="howlist">
+      <li>${IC.drop}<div><b>Reliable</b><span>Sunny conditions, with a score of 85 or higher.</span></div></li>
+      <li>${IC.stake}<div><b>Fair fee</b><span>6% or less.</span></div></li>
+      <li>${IC.garden}<div><b>Pays you directly</b><span>Rewards arrive in your wallet, so your garden can count them.</span></div></li>
+      <li>${IC.progress}<div><b>Not too big</b><span>Under 10% of the network, which helps spread stake across more pools.</span></div></li>
+    </ul>
+    <p class="fine">Several pools can be Recommended. Choose any pool you like.</p>`);
+}
+function validatorSheet(id){
+  const v=VALS.find(x=>x.id===id), c=vCond(v), cd=COND[c];
+  const rows = v.score==null ? '' : `<dl class="rows"><dt>Reliability score</dt><dd>${v.score} out of 100</dd><dt>Pool fee</dt><dd>${v.fee}%</dd><dt>Rewards</dt><dd>${v.pay==='direct'?'Sent to your wallet':'Added to your stake'}</dd><dt>Share of the network</dt><dd>${v.share}%</dd><dt>Estimated yield</dt><dd>about ${vApy(v)}% a year</dd><dt>Last checked</dt><dd>2 minutes ago</dd></dl><p class="fine">Sample values for this mockup. Estimates aren't guaranteed.</p>`;
+  const msg = !v.ok ? "This pool isn't accepting new stake right now. Pick another one." : (v.score==null ? "We don't have reliability data for this pool yet. You can still choose it, but your garden's conditions will show as unknown." : cd.msg);
+  const btn = v.ok ? `<button class="sheetbtn" data-act="vchoose" data-id="${v.id}">Choose this pool</button>` : '';
+  openSheet(`<h2 id="sheetTitle">${v.name}</h2><div class="plantview">${soilSample(c)}<div><b>${cd.name}</b><p style="margin:2px 0">${cd.line}</p></div></div><p>${msg}</p>${rows}${btn}`);
+}
+
+
+/* ---------- amount + confirm ---------- */
+const MINSTAKE=100, BAL=48200;
+const TIERS=[[MINSTAKE,1],[5000,3],[25000,7],[100000,12],[400000,19]];
+function plotsFor(n){let p=0;TIERS.forEach(t=>{if(n>=t[0])p=t[1]});return p}
+function parseAmt(str){
+  if(!str||str==='.') return {state:'empty',value:0};
+  const [w,f='']=str.split('.');
+  if(f.length>5) return {state:'dec',value:0};
+  const value=Number(w||'0')+Number(('0.'+(f||'0')));
+  if(value<MINSTAKE) return {state:'min',value};
+  if(value>BAL) return {state:'max',value};
+  return {state:'ok',value};
+}
+function miniGarden(plots,fill,stroke){
+  const rows=LAYOUT[plots], W=200,H=110, sq=Math.sqrt(3), maxRow=Math.max(...rows);
+  const R=Math.min(24,(W-10)/(maxRow*sq),(H-8)/((rows.length-1)*1.5+2));
+  const w=sq*R, gh=(rows.length-1)*1.5*R+2*R, top=(H-gh)/2+R; let out='';
+  rows.forEach((n,ri)=>{const y=top+ri*1.5*R;for(let j=0;j<n;j++){const x=W/2+(j-(n-1)/2)*w;
+    out+=`<polygon points="${hexPts(R*0.92,x,y)}" fill="${fill}" stroke="${stroke}" stroke-width="1.2"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${Math.max(2,R*0.14).toFixed(1)}" fill="#F6B221"/>`}});
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${plots} ${plots===1?'plot':'plots'}">${out}</svg>`;
+}
+function total(){return S.stakedAmt??AMT[S.plots]}
+function act(){return Math.max(0,total()-S.pWait-S.pReady)}
+function syncMode(){ if(S.mode==='first') return; S.mode = act()>0 ? 'active' : (S.pReady>0 ? 'ready' : 'dormant'); }
+function setModeDemo(val){
+  const t=total(); S.banner=true; S.released=false;
+  S.pWait = val==='dormant' ? t : 0; S.pReady = val==='ready' ? t : 0;
+  if(val==='first') S.stakedAmt=null;
+  S.mode=val; syncMode();
+}
+function parseStop(str){
+  if(!str||str==='.') return {state:'empty',value:0};
+  const [w,f='']=str.split('.');
+  if(f.length>5) return {state:'dec',value:0};
+  const value=Number(w||'0')+Number('0.'+(f||'0'));
+  if(value<=0) return {state:'empty',value:0};
+  if(value>act()) return {state:'max',value};
+  const rem=act()-value;
+  if(rem>0 && rem<MINSTAKE) return {state:'dust',value};
+  return {state:'ok',value};
+}
+function curVal(){return VALS.find(x=>x.id===S.vsel)||VALS[0]}
+function isAdding(){return S.mode==='active'&&curVal().id==='orchard'}
+function existingAmt(){return isAdding()?act():0}
+function renderAmount(){
+  const v=curVal(), c=vCond(v), cd=COND[c], adding=isAdding();
+  $('#app').innerHTML=`
+    <header class="vhead">
+      <button class="ibtn" data-act="backvals" aria-label="Back to validators">${svgIc('<path d="M15 5l-7 7 7 7"/>')}</button>
+      <h1>${adding?'Add to your stake':'Choose an amount'}</h1>
+    </header>
+    <div class="amtpool">${soilSample(c)}<div><b>${v.name}</b><span>${cd.name}: ${cd.line.toLowerCase()}</span></div><button class="linkbtn" data-act="backvals">Change</button></div>
+    ${adding?`<p class="amtnote">You already stake ${fmt(existingAmt())} NIM here. New stake goes to the same pool.</p>`:''}
+    <div class="amtbox">
+      <label class="amtlabel" for="amt">Amount to stake</label>
+      <div class="amtfield"><input id="amt" type="text" inputmode="decimal" autocomplete="off" placeholder="0" value="${S.amount}" aria-describedby="amterr"><span>NIM</span></div>
+      <div class="amtmeta"><span>Available: ${fmt(BAL)} NIM</span>
+        <span class="amtchips"><button class="chipbtn" data-act="amtpct" data-val="25">25%</button><button class="chipbtn" data-act="amtpct" data-val="50">50%</button><button class="chipbtn" data-act="amtpct" data-val="100">Max</button></span></div>
+      <p id="amterr" class="amterr" role="alert"></p>
+    </div>
+    <div class="preview" id="preview"></div>
+    <p class="estline" id="est"></p>
+    <p class="fine2">Sample data. The minimum stake needs checking on testnet.</p>
+    <div class="vfoot"><button class="btn primary wide" id="reviewBtn" data-act="review" disabled>Review stake</button></div>
+    ${tabsHTML('stake')}`;
+  paintAmount();
+}
+function paintAmount(){
+  if(!$('#amt')) return;
+  const r=parseAmt(S.amount), v=curVal(), c=vCond(v), cd=COND[c], ok=r.state==='ok';
+  const msg={empty:'',ok:'',min:`The minimum stake is ${MINSTAKE} NIM.`,max:`You only have ${fmt(BAL)} NIM available.`,dec:'NIM supports up to 5 decimal places.'}[r.state];
+  $('#amterr').textContent=msg; $('#amt').setAttribute('aria-invalid',msg?'true':'false');
+  $('#reviewBtn').disabled=!ok;
+  const total=existingAmt()+(ok?r.value:0), plots=plotsFor(total);
+  const next=TIERS.find(t=>t[0]>total);
+  if(plots>0){
+    $('#preview').innerHTML=`${miniGarden(plots,cd.fill,cd.stroke)}<div><b>${plots} ${plots===1?'plot':'plots'}</b>Plants start as seeds and grow as your stake earns rewards.${next?`<br><br>Stake ${fmt(next[0])} NIM or more in total for ${next[1]} plots.`:''}</div>`;
+  } else {
+    $('#preview').innerHTML=`<div><b>Your garden</b>Enter an amount to see how many plots you'll get.</div>`;
+  }
+  $('#est').innerHTML = ok ? `Estimated rewards: <b>about ${fmt(r.value*Number(vApy(v))/100)} NIM a year</b>. This is an estimate, not a promise.` : '';
+}
+function reviewSheet(){
+  const r=parseAmt(S.amount); if(r.state!=='ok') return;
+  const v=curVal(), cd=COND[vCond(v)], total=existingAmt()+r.value, plots=plotsFor(total);
+  openSheet(`<h2 id="sheetTitle">Review your stake</h2>
+    <dl class="rows"><dt>Pool</dt><dd>${v.name}</dd><dt>Amount</dt><dd>${fmt(r.value)} NIM</dd><dt>Garden</dt><dd>${plots} ${plots===1?'plot':'plots'}</dd><dt>Conditions</dt><dd>${cd.name}</dd><dt>Estimated rewards</dt><dd>about ${fmt(r.value*Number(vApy(v))/100)} NIM a year</dd><dt>Rewards arrive</dt><dd>${v.pay==='direct'?'Paid to your wallet':'Added to your stake'}</dd></dl>
+    <p class="fine">You can stop earning any time. Getting your NIM back takes from 12 hours to a few days. You'll approve this in Nimiq Pay.</p>
+    <button class="sheetbtn" data-act="confirmstake">Confirm in Nimiq Pay</button>
+    <button class="sheetbtn alt" data-act="close">Back</button>`);
+}
+function startStake(){ runTx('stake'); }
+function statusSheet(icon,title,body,btns){
+  openSheet(`<div class="centered"><div class="statusic">${icon}</div><h2 id="sheetTitle">${title}</h2><p>${body}</p></div>${btns}`);
+}
+const TX={
+  stake:{noun:'stake',wait:['Waiting for approval','Approve the stake in Nimiq Pay. Please keep the app open.'],back:'Back to amount'},
+  stop:{noun:'request',wait:['Waiting for approval','Approve stopping your stake in Nimiq Pay. Please keep the app open.'],back:'Close'},
+  reactivate:{noun:'request',wait:['Waiting for approval','Approve reactivating your stake in Nimiq Pay. Please keep the app open.'],back:'Close'},
+  release:{noun:'release',wait:['Step 1 of 2: release','Approve releasing your stake in Nimiq Pay. Please keep the app open.'],back:'Close'},
+  withdraw:{noun:'withdrawal',wait:['Step 2 of 2: withdraw','Approve sending your NIM back to your wallet. Please keep the app open.'],back:'Close'}
+};
+let curTx=null;
+function runTx(kind){
+  curTx=kind; const t=TX[kind];
+  openSheet(`<div class="centered"><h2 id="sheetTitle">${t.wait[0]}</h2><div class="spin" aria-hidden="true"></div><p>${t.wait[1]}</p></div>`,{lock:true});
+  setTimeout(()=>{
+    let res=S.result;
+    if(res==='partial') res = kind==='release' ? 'confirmed' : (kind==='withdraw' ? 'notsent' : 'notsent');
+    showResult(res,kind);
+  },1800);
+}
+function msgFor(res,kind){
+  const t=TX[kind];
+  if(kind==='withdraw') return {
+    declined:['No problem',"You declined the withdrawal. Your stake is released, and no NIM has moved. Finish when you're ready."],
+    notsent:['Almost done',"Your stake is released, but the withdrawal didn't go through. Your NIM is safe. Finish when you're ready."],
+    network:["Can't reach the network","Check your connection. Your stake is released, and the withdrawal hasn't been sent."],
+    maybe:["We couldn't confirm yet","Your withdrawal may or may not have gone through. Check your Nimiq Pay history before trying again, so you don't send it twice."]
+  }[res];
+  return {
+    declined:['No problem','You declined the request in Nimiq Pay, so nothing was sent.'],
+    notsent:[`Couldn't send your ${t.noun}`,'Something went wrong before the request reached the network. Nothing was sent.'],
+    network:["Can't reach the network",'Check your connection. Nothing has been sent.'],
+    maybe:["We couldn't confirm yet",`Your ${t.noun} may or may not have gone through. Check your Nimiq Pay history before trying again, so you don't send it twice.`]
+  }[res];
+}
+function showResult(res,kind){
+  const t=TX[kind];
+  if(res==='confirmed'){ closeSheet(); applyTx(kind); return; }
+  const ICN={
+    declined:svgIc('<path d="M6 6l12 12M18 6 6 18"/>',26),
+    notsent:svgIc('<path d="M12 8v5"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/>',26),
+    network:svgIc('<path d="M3 9a14 14 0 0 1 18 0M6 12.5a9.5 9.5 0 0 1 12 0M9 16a5 5 0 0 1 6 0"/><path d="M12 19.5h.01"/>',26),
+    maybe:svgIc('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',26)
+  };
+  const retryLabel = kind==='withdraw' ? 'Finish withdrawing' : 'Try again';
+  const retry=`<button class="sheetbtn" data-act="retrytx">${retryLabel}</button><button class="sheetbtn alt" data-act="close">${t.back}</button>`;
+  if(res==='maybe'){
+    openSheet(`<div class="centered"><h2 id="sheetTitle">Checking</h2><div class="spin" aria-hidden="true"></div><p>We're checking the network to see whether it went through.</p></div>`,{lock:true});
+    const m=msgFor('maybe',kind);
+    setTimeout(()=>statusSheet(ICN.maybe,m[0],m[1],`<button class="sheetbtn" data-act="recheck">Check again</button><button class="sheetbtn alt" data-act="gohome">Back to garden</button>`),2200);
+    return;
+  }
+  const m=msgFor(res,kind);
+  statusSheet(ICN[res],m[0],m[1], res==='declined' && kind!=='withdraw' ? `<button class="sheetbtn alt" data-act="close">${t.back}</button>` : retry);
+}
+function applyTx(kind){
+  if(kind==='stake'){ applyStake(); return; }
+  if(kind==='stop'){
+    const a=parseStop(S.stopAmt).value;
+    S.stakedAmt=total(); S.pWait+=a; S.waitLeft='1 day 6 hours'; S.released=false; syncMode();
+    S.plots=Math.max(1,plotsFor(act())); S.banner=true; render();
+    toast(act()>0 ? `Stopped earning on ${fmt(a)} NIM. The rest keeps earning.` : 'Stopped earning. Your garden is resting.');
+    return;
+  }
+  if(kind==='reactivate'){
+    const n=S.pWait; S.stakedAmt=total(); S.pWait=0; syncMode(); S.plots=Math.max(1,plotsFor(act())); S.banner=true; render();
+    toast(`Reactivated ${fmt(n)} NIM. Your garden wakes up.`); chime([523.25,659.25,783.99]); return;
+  }
+  if(kind==='release'){ S.released=true; render(); setTimeout(()=>runTx('withdraw'),350); return; }
+  if(kind==='withdraw'){
+    const amt=S.pReady, left=total()-amt;
+    S.pReady=0; S.released=false;
+    if(left<=0){ S.stakedAmt=null; S.pWait=0; S.mode='first'; S.screen='home'; S.vsel=null; }
+    else { S.stakedAmt=left; syncMode(); S.plots=Math.max(1,plotsFor(act())); }
+    render();
+    statusSheet(svgIc('<path d="M5 12.5l4.5 4.5L19 7.5"/>',26),'Withdrawn',
+      left>0 ? `${fmt(amt)} NIM is back in your wallet. The rest of your stake is still in place.` : `${fmt(amt)} NIM is back in your wallet. Your unlocked plants are kept, and you can plant a new stake any time.`,
+      `<button class="sheetbtn" data-act="${left>0?'close':'gohome'}">${left>0?'Back to your stake':'Back to garden'}</button>`);
+    chime([523.25,659.25,783.99]);
+  }
+}
+/* ---------- your stake screen ---------- */
+function renderStake(){
+  if(S.mode==='first'){ go('validators'); return; }
+  const v=VALS.find(x=>x.id==='orchard'), c=vCond(v), cd=COND[c];
+  const tot=total(), a=act(), earned=tot*S.rewards/100;
+  const status = a>0 ? 'Earning' : (S.pReady>0 ? (S.released?'Released':'Ready to withdraw') : 'Stopped earning');
+  let body='';
+  if(S.sstate==='loading') body=Array.from({length:4},()=>'<div class="skel"></div>').join('');
+  else if(S.sstate==='error') body=`<div class="vempty"><b>Can't check your stake right now</b><p>Your NIM isn't affected. Check your connection and try again.</p><button class="btn primary" data-act="sretry">Try again</button></div>`;
+  else {
+    const rows=[];
+    if(a>0) rows.push(['Earning','Rewards keep coming',a]);
+    if(S.pWait>0) rows.push(['Waiting',`About ${S.waitLeft} left (estimate)`,S.pWait]);
+    if(S.pReady>0) rows.push(['Ready to withdraw',S.released?'Released. One approval left.':'Ready now',S.pReady]);
+    const steps=[
+      ['Stop earning','Choose how much NIM to stop earning on. You can undo this while you wait.'],
+      ['Wait','It takes from 12 hours to a few days.'],
+      ['Withdraw','Two quick approvals in Nimiq Pay send your NIM back to your wallet.']
+    ];
+    const footReact = (a===0 && S.pReady===0);
+    body=`<div class="amtpool">${soilSample(c)}<div><b>Orchard Pool</b><span>${cd.name}: ${cd.line.toLowerCase()}</span></div></div>
+    <div class="stats"><div class="stat"><small>Staked</small><b>${fmt(tot)}<i>NIM</i></b></div><div class="stat"><small>Earned</small><b>${fmt(earned)}<i>NIM</i></b></div><div class="stat"><small>Rewards go to</small><b>${v.pay==='direct'?'Wallet':'Your stake'}</b></div></div>
+    <div class="portions">${rows.map(r=>`<div class="portion"><div><b>${r[0]}</b><span>${r[1]}</span></div><strong>${fmt(r[2])} NIM</strong></div>`).join('')}</div>
+    <p class="stakehead" style="margin-top:14px">How getting your NIM back works:</p>
+    <ol class="steps">${steps.map((x,i)=>`<li class="todo"><span class="stepdot" aria-hidden="true"><span class="stepnum">${i+1}</span></span><div><b>${x[0]}</b><span class="d">${x[1]}</span></div></li>`).join('')}</ol>
+    ${a>0?`<button class="btn ghost bodybtn" data-act="stopsheet">Stop earning</button>`:''}
+    ${S.pWait>0&&!footReact?`<button class="btn ghost bodybtn" data-act="reactivate">Reactivate ${fmt(S.pWait)} NIM</button>`:''}
+    ${a>0?`<button class="btn ghost bodybtn" data-act="compare">Compare pools</button>`:''}`;
+  }
+  let foot='';
+  if(S.sstate==='ok'){
+    const lab = S.pReady>0 ? [S.released?'Finish withdrawing':`Withdraw ${fmt(S.pReady)} NIM`,'dowithdraw'] : (a>0?['Add to stake','addstake']:['Reactivate stake','reactivate']);
+    foot=`<div class="vfoot"><button class="btn primary wide" data-act="${lab[1]}">${lab[0]}</button></div>`;
+  }
+  $('#app').innerHTML=`
+    <header class="vhead"><button class="ibtn" data-act="back" aria-label="Back to garden">${svgIc('<path d="M15 5l-7 7 7 7"/>')}</button><h1>Your stake</h1><span class="chipstat ${a>0?'on':''}" style="margin-left:auto">${status}</span></header>
+    ${body}
+    ${foot}
+    ${tabsHTML('stake')}`;
+}
+function stopSheet(){
+  S.stopAmt='';
+  openSheet(`<h2 id="sheetTitle">Stop earning</h2>
+    <p>Choose how much NIM to stop earning on. The rest keeps earning.</p>
+    <label class="amtlabel" for="stopamt">Amount to stop</label>
+    <div class="amtfield"><input id="stopamt" type="text" inputmode="decimal" autocomplete="off" placeholder="0" aria-describedby="stoperr"><span>NIM</span></div>
+    <div class="amtmeta"><span>Earning now: ${fmt(act())} NIM</span></div>
+    <div class="stopchips" role="group" aria-label="Quick amounts">${[25,50,75,100].map(n=>`<button class="chipbtn" data-act="stoppct" data-val="${n}">${n}%</button>`).join('')}</div>
+    <p id="stoperr" class="amterr" role="alert"></p>
+    <div id="stopsum" class="stopsum"></div>
+    <p class="fine">Getting your NIM back takes from 12 hours to a few days after you stop. You can undo this while you wait.</p>
+    <button class="sheetbtn" id="stopBtn" data-act="stopconfirm" disabled>Stop earning</button>
+    <button class="sheetbtn alt" data-act="close">Keep earning</button>`);
+  paintStop();
+}
+function paintStop(){
+  if(!$('#stopamt')) return;
+  const r=parseStop(S.stopAmt);
+  const msg={empty:'',ok:'',dec:'NIM supports up to 5 decimal places.',max:`You only have ${fmt(act())} NIM earning.`,dust:`Leave at least ${MINSTAKE} NIM earning, or stop all of it.`}[r.state];
+  $('#stoperr').textContent=msg; $('#stopamt').setAttribute('aria-invalid',msg?'true':'false');
+  $('#stopBtn').disabled = r.state!=='ok';
+  if(r.state==='ok'){
+    const rem=act()-r.value, pl=plotsFor(rem);
+    $('#stopsum').innerHTML = rem>0 ? `<b>${fmt(rem)} NIM keeps earning.</b> Your garden will have ${pl} ${pl===1?'plot':'plots'}.` : `<b>All of your stake stops earning.</b> Your garden will rest.`;
+  } else $('#stopsum').textContent='';
+}
+function applyStake(){
+  const r=parseAmt(S.amount), v=curVal(), adding=isAdding();
+  const prev=adding?total():0;
+  S.stakedAmt=prev+r.value;
+  if(!adding){S.pWait=0;S.pReady=0;S.released=false;S.mode='active';S.rewards=0;S.watered=false;S.streak=0;S.fresh=true;S.cond=vCond(v)}
+  S.plots=Math.max(1,plotsFor(act()));
+  S.amount=''; S.banner=true; go('home');
+  setTimeout(()=>{toast(adding?'Stake added. Your garden will grow with it.':"Planted. Your first reward arrives with the pool's next payout.");chime([523.25,659.25,783.99])},250);
+}
+
+
+/* ---------- intro cards ---------- */
+function introGarden(){
+  const R=46,w=Math.sqrt(3)*R,cx=150,top=74; const rows=[2,1], plants=[['daisy',4],['sprig',3],['fern',2]]; let idx=0,out='';
+  rows.forEach((n,ri)=>{const y=top+ri*1.5*R; for(let j=0;j<n;j++){const x=cx+(j-(n-1)/2)*w, pl=plants[idx++];
+    out+=`<polygon points="${hexPts(R*0.94,x,y)}" fill="${COND.sunny.fill}" stroke="${COND.sunny.stroke}" stroke-width="1.6"/><g transform="translate(${x.toFixed(1)} ${(y+R*0.26).toFixed(1)}) scale(${(R/40*1.3).toFixed(3)})"><g>${plantSVG(pl[0],pl[1])}</g></g>`}});
+  return `<svg viewBox="0 0 300 232" width="100%" style="max-width:340px" aria-hidden="true"><circle cx="262" cy="34" r="30" fill="#FFD36B" opacity=".18"/><circle cx="262" cy="34" r="17" fill="#FFD36B"/>${out}</svg>`;
+}
+function renderIntro(){
+  const i=S.introStep, last=i===2;
+  const li=(ic,t,d)=>`<li>${ic}<div><b>${t}</b><span>${d}</span></div></li>`;
+  const sun=svgIc('<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>');
+  let body='';
+  if(i===0) body=`<div class="introhero">${introGarden()}</div><h1 class="introtitle">Stake NIM. Grow a garden.</h1><p class="introtext">Stake NIM with a validator and watch a garden of hex plots grow as your stake earns rewards.</p>`;
+  if(i===1) body=`<h1 class="introtitle" style="margin-top:28px">Four signals, four jobs</h1><ul class="introlist">
+      ${li(IC.garden,'Plots','The more NIM you stake, the more plots you get.')}
+      ${li(IC.progress,'Growth','Rewards your stake earns make your plants grow.')}
+      ${li(IC.drop,'Glow','Water daily to keep your garden bright. It doesn\'t change your rewards.')}
+      ${li(sun,'Sky and soil','Your validator\'s recent reliability sets the weather.')}</ul>`;
+  if(i===2) body=`<h1 class="introtitle" style="margin-top:28px">Rewards vary. Your NIM stays yours.</h1><ul class="introlist">
+      ${li(IC.stake,'Rewards can change','They come from staking and aren\'t guaranteed. Watering never changes them.')}
+      ${li(svgIc('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),'You stay in control','You can stop earning any time. Getting NIM back takes from 12 hours to a few days.')}
+      ${li(svgIc('<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>'),'Weather is a signal','It reflects a validator\'s recent reliability. It isn\'t a promise.')}</ul>`;
+  $('#app').innerHTML=`<div class="intro">
+    <div class="introtop"><span class="brand" style="font-size:18px">${IC.logo}Hexgrove</span>${last?'<span></span>':'<button class="skip" data-act="introskip">Skip</button>'}</div>
+    <div class="introbody" id="introbody" aria-live="polite">${body}</div>
+    <div class="dots" role="img" aria-label="Step ${i+1} of 3">${[0,1,2].map(k=>`<span class="dot ${k===i?'on':''}"></span>`).join('')}</div>
+    <div class="introact">${i>0?'<button class="btn ghost" data-act="introback">Back</button>':''}<button class="btn primary" data-act="${last?'introdone':'intronext'}">${last?'Choose a validator':'Next'}</button></div>
+  </div>`;
+}
+
+/* ---------- collection ---------- */
+const UNLOCK={
+  daisy:{type:'rewards',need:0,label:'Earn your first reward',done:'Unlocked when you earned your first reward'},
+  fern:{type:'rewards',need:1,label:'Earn 1% of your stake in rewards',done:'Unlocked at 1% of your stake in rewards'},
+  sprig:{type:'rewards',need:5,label:'Earn 5% of your stake in rewards',done:'Unlocked at 5% of your stake in rewards'},
+  tulip:{type:'streak',need:7,label:'Water 7 days in a row',done:'Unlocked with a 7-day watering streak'},
+  lotus:{type:'streak',need:14,label:'Water 14 days in a row',done:'Unlocked with a 14-day watering streak'},
+  hexbloom:{type:'streak',need:30,label:'Water 30 days in a row',done:'Unlocked with a 30-day watering streak'}
+};
+function bests(){
+  if(S.mode!=='first'){ S.bestStreak=Math.max(S.bestStreak,S.streak); S.bestRewards=Math.max(S.bestRewards,S.rewards); }
+  return {streak:S.bestStreak,rewards:S.bestRewards};
+}
+function unlockInfo(sp){
+  const u=UNLOCK[sp], b=bests(), have=u.type==='streak'?b.streak:b.rewards;
+  const done = u.need===0 ? have>0 : have>=u.need;
+  const prog = u.need===0 ? (have>0?1:0) : Math.min(1,have/u.need);
+  const label = u.type==='streak' ? `${Math.min(have,u.need)} of ${u.need} days` : (u.need===0 ? 'No rewards yet' : `${Math.min(have,u.need).toFixed(1)}% of ${u.need}%`);
+  return {u,done,prog,label};
+}
+function plantTile(sp,done){
+  const lock=`<g transform="translate(40 36)" stroke="#AEB9DD" fill="none" stroke-width="2.2" stroke-linecap="round"><rect x="2" y="10" width="16" height="12" rx="3"/><path d="M5 10V7a5 5 0 0 1 10 0v3"/></g>`;
+  return `<svg viewBox="0 0 100 96" aria-hidden="true"><polygon points="${hexPts(42,50,48)}" fill="${COND.sunny.fill}" stroke="${COND.sunny.stroke}" stroke-width="1.6"/><g transform="translate(50 58) scale(1.15)"><g class="${done?'':'pl'}">${plantSVG(sp,4)}</g></g>${done?'':lock}</svg>`;
+}
+function renderCollection(){
+  const keys=Object.keys(SP), info=Object.fromEntries(keys.map(k=>[k,unlockInfo(k)])), n=keys.filter(k=>info[k].done).length;
+  const card=k=>{ const i=info[k], d=SP[k];
+    return `<button class="ccard ${i.done?'':'locked'}" data-act="cplant" data-sp="${k}" aria-label="${d.name}. ${i.done?'Unlocked.':'Locked. '+i.u.label+'.'}">${plantTile(k,i.done)}<b>${d.name}</b>${i.done?'<span class="s">Unlocked</span>':`<span class="s">${i.u.label}</span><span class="pbar" aria-hidden="true"><i style="width:${(i.prog*100).toFixed(0)}%"></i></span><span class="s">${i.label}</span>`}</button>`; };
+  $('#app').innerHTML=`
+    <header class="vhead"><h1 style="margin-left:12px">Collection</h1></header>
+    <p class="vintro">${n} of ${keys.length} plants unlocked. Plants you unlock stay unlocked, even if a streak resets.</p>
+    <h2 class="sect">Common</h2><div class="cgrid">${keys.filter(k=>!SP[k].rare).map(card).join('')}</div>
+    <h2 class="sect">Rare</h2><div class="cgrid">${keys.filter(k=>SP[k].rare).map(card).join('')}</div>
+    <div style="height:18px"></div>
+    ${tabsHTML('collection')}`;
+}
+function collectionSheet(sp){
+  const d=SP[sp], i=unlockInfo(sp);
+  const stages=[0,1,2,3,4].map(st=>`<div class="stg"><svg viewBox="-24 -48 48 60" width="58" height="72" aria-hidden="true"><g class="${i.done?'':'pl'}">${plantSVG(sp,st)}</g></svg><span>${STAGE[st]}</span></div>`).join('');
+  openSheet(`<h2 id="sheetTitle">${d.name}</h2>
+    <span class="tag">${d.rare?'Rare':'Common'}</span> <span class="tag">${i.done?'Unlocked':'Locked'}</span>
+    <div class="stages" aria-label="Growth stages">${stages}</div>
+    <p>${i.done?i.u.done+'.':i.u.label+' to unlock.'}</p>
+    ${i.done?'':`<div class="pbar" aria-hidden="true"><i style="width:${(i.prog*100).toFixed(0)}%"></i></div><p class="fine">${i.label}</p>`}
+    <p class="fine">Unlocked plants stay unlocked, even if your streak resets.</p>`);
+}
+
+
+/* ---------- progress ---------- */
+const PROG=(()=>{const r=rng(20261031);return Array.from({length:30},()=>+(6.2+r()*2.4).toFixed(1))})();
+const PAYS=(()=>{const r=rng(777);return Array.from({length:6},()=>+(3.1+r()*0.8).toFixed(1))})();
+function dayLabel(back){const d=new Date();d.setDate(d.getDate()-back);return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})}
+function payLabel(k){ // k=0 newest payout; payouts at 08:05 and 20:05 local time
+  const now=new Date(), slots=[]; for(let d=0;d<4;d++){[20,8].forEach(h=>{const t=new Date(now);t.setDate(now.getDate()-d);t.setHours(h,5,0,0);if(t<=now)slots.push(t)})}
+  const t=slots[k], dd=Math.round((new Date(now.getFullYear(),now.getMonth(),now.getDate())-new Date(t.getFullYear(),t.getMonth(),t.getDate()))/864e5);
+  const time=t.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  return (dd===0?'Today':dd===1?'Yesterday':t.toLocaleDateString('en-US',{month:'short',day:'numeric'}))+', '+time;
+}
+function chartSVG(vals){
+  const n=vals.length, max=Math.max(...vals)*1.15, W=340,H=130,gap=n<=7?10:3, bw=(W-gap*(n-1))/n; let out='';
+  const sel=S.pbar==null?n-1:Math.min(S.pbar,n-1);
+  vals.forEach((v,i)=>{const h=Math.max(3,(v/max)*(H-8)), x=i*(bw+gap), y=H-h;
+    out+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="${Math.min(4,bw/2).toFixed(1)}" fill="${i===sel?'#F6B221':'#6B5A2A'}" style="pointer-events:none" data-bar="${i}" tabindex="0" role="button" aria-label="${dayLabel(n-1-i)}: ${v} NIM"/>`});
+  return `<svg viewBox="0 0 ${W} ${H}" data-act="pchart" data-n="${n}" role="group" aria-label="Rewards per day, last ${n} days. Tap anywhere on the chart to pick a day.">${out}</svg>`;
+}
+function renderProgress(){
+  const head=`<header class="vhead"><h1 style="margin-left:12px">Progress</h1></header>`, tabs=tabsHTML('progress');
+  if(S.mode==='first'){
+    $('#app').innerHTML=head+`<div class="vempty"><b>Your progress will show up here</b><p>Stake NIM to start earning rewards and growing your garden.</p><button class="btn primary" data-act="first">Choose a validator</button></div>`+tabs; return;
+  }
+  if(S.pstate==='loading'){ $('#app').innerHTML=head+Array.from({length:5},()=>'<div class="skel"></div>').join('')+tabs; return; }
+  if(S.pstate==='error'){ $('#app').innerHTML=head+`<div class="vempty"><b>Can't load your progress</b><p>Your stake and rewards aren't affected. Check your connection and try again.</p><button class="btn primary" data-act="pretry">Try again</button></div>`+tabs; return; }
+  const n=S.prange, vals=PROG.slice(-n), earned=total()*S.rewards/100, best=bests().streak;
+  const sel=S.pbar==null?n-1:Math.min(S.pbar,n-1), sum=vals.reduce((a,b)=>a+b,0);
+  const mature=Array.from({length:S.plots},(_,i)=>i).filter(i=>stageFor(i)===4).length;
+  // watering week
+  const today=new Date(), endOff=S.watered?0:-1; let week='';
+  for(let k=0;k<7;k++){const off=-(6-k), d=new Date(today); d.setDate(today.getDate()+off);
+    const on=S.streak>0 && off<=endOff && off>endOff-S.streak, isToday=off===0;
+    week+=`<div class="wd ${on?'on':''} ${isToday?'today':''}"><i aria-hidden="true">${on?svgIc('<path d="M5 12.5l4.5 4.5L19 7.5"/>',16):''}</i><span>${isToday?'Today':['S','M','T','W','T','F','S'][d.getDay()]}</span><span class="sr">${on?'Watered':isToday?'Not watered yet':'Not watered'}</span></div>`;}
+  // next unlock
+  const infos=Object.keys(SP).map(k=>[k,unlockInfo(k)]).filter(x=>!x[1].done).sort((a,b)=>b[1].prog-a[1].prog), nx=infos[0];
+  const next = nx ? `<div class="nextun">${plantTile(nx[0],false)}<div><b>${SP[nx[0]].name}</b><span>${nx[1].u.label}</span><span>${nx[1].label}</span></div><button class="linkbtn" data-act="togo">Collection</button></div>` : `<p class="cap">All plants unlocked. Nice work.</p>`;
+  const paused = (S.mode==='dormant'||S.mode==='ready') ? `<div class="vnote"><span>Rewards are paused while your stake is stopped.</span></div>` : '';
+  $('#app').innerHTML=head+paused+`
+    <div class="phero"><small>Rewards earned</small><b>${fmt(earned)}<i>NIM</i></b><span>Since you started staking, about 85 days ago</span></div>
+    <div class="stats"><div class="stat"><small>Payouts</small><b>170</b></div><div class="stat"><small>Best streak</small><b>${best}<i>days</i></b></div><div class="stat"><small>Mature plants</small><b>${mature}<i>of ${S.plots}</i></b></div></div>
+    <div class="psec"><h2>Rewards</h2><div class="prange" role="group" aria-label="Range"><button class="chipbtn" data-act="prange" data-val="7" aria-pressed="${n===7}">7 days</button><button class="chipbtn" data-act="prange" data-val="30" aria-pressed="${n===30}">30 days</button></div></div>
+    <p class="cap" aria-live="polite"><b>${dayLabel(n-1-sel)}:</b> ${vals[sel].toFixed(1)} NIM. Last ${n} days: ${fmt(sum)} NIM.</p>
+    <div class="chart">${chartSVG(vals)}</div>
+    <div class="axis"><span>${dayLabel(n-1)}</span><span>Today</span></div>
+    <div class="psec"><h2>Recent payouts</h2><button class="linkbtn" data-act="seeall">See all</button></div>
+    <div class="plist">${PAYS.slice(0,5).map((v,k)=>`<div class="prow"><span>${payLabel(k)}</span><b>+${v.toFixed(1)} NIM</b></div>`).join('')}</div>
+    <div class="psec"><h2>Watering streak</h2></div>
+    <div class="strk"><b>${S.streak}</b><span>${S.streak===1?'day':'days'} in a row. Watering keeps your garden bright and doesn't change your rewards.</span></div>
+    <div class="week">${week}</div>
+    <div class="psec"><h2>Next unlock</h2></div>
+    ${next}
+    <p class="fine2">Sample data. Real rewards will come from your pool's payouts.</p>
+    ${tabs}`;
+}
+
+/* ---------- sheets ---------- */
+let lastFocus=null;
+function openSheet(html,opts={}){
+  const sh=$('#sheet');
+  if(!sh.classList.contains('on')) lastFocus=document.activeElement;
+  if(opts.lock) sh.dataset.lock='1'; else delete sh.dataset.lock;
+  sh.innerHTML=`<div class="grab"></div>${opts.lock?'':'<button class="closebtn" data-act="close" aria-label="Close">×</button>'}${html}`;
+  sh.classList.add('on'); $('#scrim').classList.add('on'); $('.wrap').inert=true;
+  if(opts.lock){ sh.setAttribute('tabindex','-1'); sh.focus(); }
+  else { const f=$('.closebtn',sh); if(f&&!sh.dataset.keep) f.focus(); }
+}
+function closeSheet(){
+  const sh=$('#sheet'); delete sh.dataset.lock;
+  sh.classList.remove('on'); $('#scrim').classList.remove('on'); $('.wrap').inert=false;
+  if(lastFocus&&lastFocus.focus) lastFocus.focus();
+}
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),2400)}
+
+function conditionsSheet(){
+  const v=view();
+  if(v.state==='first'){toast('Conditions appear once you choose a validator.');return}
+  if(v.state==='dormant'){
+    openSheet(`<h2 id="sheetTitle">Resting</h2><p>${S.mode==='ready'?'Your stake is ready to withdraw, so your garden is resting.':'Your stake has stopped earning, so your garden is resting. Plants keep their growth and wake up when you reactivate.'}</p>${S.mode==='ready'?`<button class="sheetbtn" data-act="dowithdraw">${S.released?'Finish withdrawing':'Withdraw'}</button>`:`<button class="sheetbtn" data-act="reactivate">Reactivate stake</button>`}`);return;
+  }
+  const c=COND[S.cond];
+  let rows='';
+  if(c.score) rows=`<dl class="rows"><dt>Reliability score</dt><dd>${c.score}</dd><dt>Pool fee</dt><dd>${c.fee}</dd><dt>Rewards are sent</dt><dd>To your wallet</dd><dt>Share of the network</dt><dd>${c.share}</dd><dt>Last checked</dt><dd>2 minutes ago</dd></dl><p class="fine">Sample values for this mockup.</p>`;
+  const cta = (S.cond==='cloudy'||S.cond==='stormy') ? `<button class="sheetbtn" data-act="alt">See other pools</button>` : (S.cond==='sunny' ? `<button class="sheetbtn alt" data-act="alt">Compare validators</button>` : `<button class="sheetbtn alt" data-act="retry">Check again</button>`);
+  openSheet(`<h2 id="sheetTitle">${c.name}: ${c.line.toLowerCase()}</h2><p>${c.msg}</p>${rows}<p class="fine">Conditions reflect recent reliability. They don't guarantee rewards.</p>${cta}`);
+}
+function plantSheet(i){
+  if(S.mode==='first'){toast('Plant your first stake to grow your garden.');return}
+  const sp=speciesFor(i), st=stageFor(i), d=SP[sp];
+  const unlock = d.rare ? `Rare. Unlocked with a ${d.rare}-day watering streak.` : 'Common. Unlocked with your first reward.';
+  const note = st===0 ? 'A seed, waiting for its first reward.' : 'Grows as your stake earns rewards.';
+  openSheet(`<h2 id="sheetTitle">${d.name}</h2>
+    <div class="plantview"><svg width="104" height="104" viewBox="-30 -50 60 64" aria-hidden="true"><g>${plantSVG(sp,st)}</g></svg>
+    <div><div><b>${STAGE[st]}</b></div><p style="margin:4px 0">${note}</p><span class="tag">${unlock}</span></div></div>`);
+}
+function helpSheet(){
+  const row=(ic,t,d)=>`<li>${ic}<div><b>${t}</b><span>${d}</span></div></li>`;
+  openSheet(`<h2 id="sheetTitle">How your garden grows</h2><ul class="howlist">
+    ${row(IC.garden,'Plots','The more NIM you stake, the more plots your garden has.')}
+    ${row(IC.progress,'Growth','Rewards your stake earns make your plants grow.')}
+    ${row(IC.drop,'Glow','Water daily to keep your garden bright. Watering doesn\'t change your rewards.')}
+    ${row(svgIc('<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>'),'Sky and soil','Your validator\'s recent reliability sets the weather.')}
+  </ul>`);
+}
+function shareSheet(){
+  const sh=S.share, v=view(), amt=total(), earned=amt*S.rewards/100;
+  const tg=(k,t)=>`<label class="toggle"><span>${t}</span><input type="checkbox" data-share="${k}" ${sh[k]?'checked':''}></label>`;
+  const lines=[ sh.plants?`${S.mode==='first'?0:S.plots} plots`:'', sh.streak?`${S.streak}-day streak`:'', sh.rewards?`${fmt(earned)} NIM earned`:'', sh.amounts?`${fmt(amt)} NIM staked`:'', sh.badge&&S.watered?'Watered today ✓':'' ].filter(Boolean);
+  openSheet(`<h2 id="sheetTitle">Share your garden</h2><p class="fine">Choose what the card shows. Amounts are off by default.</p>
+    ${tg('plants','Number of plots')}${tg('streak','Watering streak')}${tg('rewards','Rewards earned')}${tg('amounts','Amount staked')}${tg('badge','Watered today badge')}
+    <div class="sharecard"><b>My Hexgrove garden</b><div>${v.name} skies today</div>${lines.map(l=>`<div>${l}</div>`).join('')}</div>
+    <button class="sheetbtn" data-act="mocksharing">Share card</button>`);
+}
+function controlsSheet(){
+  const seg=(key,opts,cur)=>`<div class="seg" data-key="${key}">${opts.map(o=>`<button data-val="${o[0]}" aria-pressed="${String(cur)===String(o[0])}">${o[1]}</button>`).join('')}</div>`;
+  const sh=$('#sheet'); sh.dataset.keep='1';
+  openSheet(`<h2 id="sheetTitle">Demo state</h2><p class="fine">Flip states to see how the screen responds.</p>
+    <h3>App state</h3>${seg('mode',[['first','First run'],['active','Active'],['dormant','Stopped earning'],['ready','Ready to withdraw']],S.mode)}
+    <h3>Validator conditions</h3>${seg('cond',[['sunny','Sunny'],['cloudy','Cloudy'],['stormy','Stormy'],['dusk','No data']],S.cond)}
+    <h3>Plots (from amount staked)</h3>${seg('plots',[[1,'1'],[3,'3'],[7,'7'],[12,'12'],[19,'19']],S.plots)}
+    <h3>Rewards earned: <span id="rw">${S.rewards.toFixed(1)}</span>% of stake</h3><input type="range" id="rewards" min="0" max="10" step="0.1" value="${S.rewards}" aria-label="Rewards earned as a percentage of stake">
+    <h3>Watering streak (rare plants unlock at 7, 14, 30)</h3>${seg('streak',[[0,'0'],[6,'6'],[7,'7'],[13,'13'],[30,'30']],S.streak)}
+    <h3>Watered today</h3>${seg('watered',[['false','Not yet'],['true','Done']],S.watered)}
+    <h3>Validator list</h3>${seg('vstate',[['ok','Normal'],['loading','Loading'],['cached','Saved list'],['error',"Can't load"]],S.vstate)}
+    <h3>Stake result in Nimiq Pay</h3>${seg('result',[['confirmed','Confirmed'],['declined','Declined'],['notsent','Not sent'],['maybe','Maybe sent'],['network','Network down'],['partial','Fails at step 2']],S.result)}
+    <h3>Your stake screen</h3>${seg('sstate',[['ok','Normal'],['loading','Loading'],['error',"Can't load"]],S.sstate)}
+    <h3>Progress screen data</h3>${seg('pstate',[['ok','Normal'],['loading','Loading'],['error',"Can't load"]],S.pstate)}
+    <div style="display:flex;gap:8px"><button class="sheetbtn alt" data-act="mockmixed">Mixed example</button><button class="sheetbtn alt" data-act="skipwait">Skip the wait</button></div>
+    <button class="sheetbtn alt" data-act="replayintro">Replay the intro cards</button>
+    <div style="display:flex;gap:8px"><button class="sheetbtn alt" data-act="gohome">Home screen</button><button class="sheetbtn alt" data-act="govals">Validator list</button></div>
+    <p class="fine">Tip: set the streak to 6 and tap Water garden to see a new plant unlock.</p>`);
+  delete sh.dataset.keep;
+}
+
+/* ---------- audio ---------- */
+let ac=null, amb=null;
+function ensureAudio(){ if(!ac){ac=new (window.AudioContext||window.webkitAudioContext)()} if(ac.state==='suspended') ac.resume(); }
+function chime(freqs){
+  if(!S.sound) return; try{ensureAudio()}catch(e){return}
+  const t=ac.currentTime;
+  freqs.forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.type='sine';o.frequency.value=f;
+    g.gain.setValueAtTime(0.0001,t+i*.11);g.gain.linearRampToValueAtTime(.18,t+i*.11+.02);g.gain.exponentialRampToValueAtTime(.0001,t+i*.11+1);
+    o.connect(g);g.connect(ac.destination);o.start(t+i*.11);o.stop(t+i*.11+1.05)});
+}
+function startAmbient(){
+  try{ensureAudio()}catch(e){return}
+  stopAmbient();
+  const master=ac.createGain();master.gain.value=0;master.gain.linearRampToValueAtTime(.06,ac.currentTime+2);master.connect(ac.destination);
+  const nodes=[196,246.94,329.63].map((f,i)=>{const o=ac.createOscillator();o.type='sine';o.frequency.value=f;o.detune.value=(i-1)*7;
+    const g=ac.createGain();g.gain.value=.5;const l=ac.createOscillator();l.frequency.value=.07+i*.03;const lg=ac.createGain();lg.gain.value=.3;
+    l.connect(lg);lg.connect(g.gain);o.connect(g);g.connect(master);o.start();l.start();return [o,l]});
+  amb={master,nodes};
+}
+function stopAmbient(){
+  if(!amb) return; const {master,nodes}=amb; amb=null;
+  master.gain.cancelScheduledValues(ac.currentTime);master.gain.linearRampToValueAtTime(0,ac.currentTime+.4);
+  setTimeout(()=>nodes.forEach(([o,l])=>{try{o.stop();l.stop()}catch(e){}}),500);
+}
+
+/* ---------- actions ---------- */
+function pour(){
+  const g=$('.garden'); if(!g) return;
+  for(let i=0;i<16;i++){const d=document.createElement('span');d.className='drop';d.style.left=(8+Math.random()*84)+'%';d.style.animationDelay=(Math.random()*.5)+'s';g.appendChild(d);setTimeout(()=>d.remove(),1700)}
+  const p=$('.plots'); if(p){p.classList.add('pulse');setTimeout(()=>p.classList.remove('pulse'),1000)}
+}
+function water(){
+  if(S.watered||S.mode!=='active') return;
+  S.watered=true; S.streak+=1; S.fresh=false; render(); pour();
+  chime([523.25,659.25,783.99]);
+  const un=Object.keys(SP).find(k=>SP[k].rare===S.streak);
+  if(un) setTimeout(()=>{toast('New plant unlocked: '+SP[un].name);chime([880,1108.7,1318.5])},900);
+}
+const MOCK={
+  first:'Mockup: this opens the validator list, then the amount screen.',
+  reactivate:'Mockup: this asks Nimiq Pay to reactivate your stake.',
+  withdraw:'Mockup: this starts the withdraw steps.',
+  addstake:'Mockup: this opens the amount screen.',
+  alt:'Mockup: this opens the validator list with conditions.',
+  tab:'Mockup: this tab isn\'t built yet.',
+  retry:'Mockup: checking again.',
+  mocksharing:'Mockup: this opens your phone\'s share menu.'
+};
+document.addEventListener('click',e=>{
+  const sd=e.target.closest('[data-share]');
+  if(sd){S.share[sd.dataset.share]=sd.checked;shareSheet();return}
+  const segBtn=e.target.closest('.seg button');
+  if(segBtn){
+    const key=segBtn.parentElement.dataset.key, val=segBtn.dataset.val;
+    if(key==='watered') S.watered = val==='true';
+    else if(key==='mode') setModeDemo(val);
+    else if(key==='cond'||key==='vstate'||key==='result'||key==='sstate'||key==='pstate') {S[key]=val; S.banner=true}
+    else {S[key]=Number(val); if(key==='plots'){S.stakedAmt=null;S.pWait=0;S.pReady=0;S.released=false;syncMode()} if(key==='streak') S.fresh=false;}
+    render(); controlsSheet(); return;
+  }
+  if(e.target.id==='scrim'){ if(!$('#sheet').dataset.lock) closeSheet(); return }
+  const el=e.target.closest('[data-act]'); if(!el) return;
+  const a=el.dataset.act;
+  switch(a){
+    case 'water': water(); break;
+    case 'sound':
+      S.sound=!S.sound; render();
+      if(S.sound){startAmbient();chime([660,880]);toast('Sound on. If you hear nothing, check that your phone isn\'t on silent and the volume is up.')} else stopAmbient();
+      break;
+    case 'share': shareSheet(); break;
+    case 'help': helpSheet(); break;
+    case 'sky': conditionsSheet(); break;
+    case 'plot': plantSheet(Number(el.dataset.i)); break;
+    case 'controls': controlsSheet(); break;
+    case 'tab': if(el.dataset.tab==='garden') go('home'); else if(el.dataset.tab==='stake') go(S.mode==='first'?'validators':'stake'); else if(el.dataset.tab==='collection') go('collection'); else if(el.dataset.tab==='progress') go('progress'); else toast(MOCK.tab); break;
+    case 'first': go('validators'); break;
+    case 'alt': closeSheet(); go('validators'); break;
+    case 'govals': closeSheet(); go('validators'); break;
+    case 'gohome': closeSheet(); go('home'); break;
+    case 'back': go('home'); break;
+    case 'vsel': { const v=VALS.find(x=>x.id===el.dataset.id); if(!v.ok){toast("This pool isn't accepting stake right now.");break} S.vsel=v.id; render(); break; }
+    case 'vfilter': S.vfilter=el.dataset.val; render(); break;
+    case 'vsort': S.vsort=el.dataset.val; render(); break;
+    case 'vinfo': validatorSheet(el.dataset.id); break;
+    case 'vcriteria': criteriaSheet(); break;
+    case 'vchoose': S.vsel=el.dataset.id; closeSheet(); render(); break;
+    case 'vretry': S.vstate='loading'; render(); setTimeout(()=>{S.vstate='ok'; if(S.screen==='validators') render()},1200); break;
+    case 'vcontinue': { const v=curVal(); if(S.mode==='active' && v.id!=='orchard'){
+        openSheet(`<h2 id="sheetTitle">Switch to ${v.name}?</h2><p>Switching pools takes a few steps: stop earning, move your stake, then reactivate. Your stake may stop earning while you switch. The exact steps get confirmed on testnet.</p><button class="sheetbtn" data-act="mockswitch">Start switching</button><button class="sheetbtn alt" data-act="close">Cancel</button>`);
+      } else { S.amount=''; go('amount'); } break; }
+    case 'mockswitch': closeSheet(); toast('Mockup: this starts the switch steps.'); break;
+    case 'backvals': go('validators'); break;
+    case 'amtpct': { const n=Math.floor(BAL*Number(el.dataset.val)/100); S.amount=String(n); const i=$('#amt'); if(i) i.value=S.amount; paintAmount(); break; }
+    case 'review': reviewSheet(); break;
+    case 'confirmstake': startStake(); break;
+    case 'intronext': S.introStep=Math.min(2,S.introStep+1); render(); break;
+    case 'introback': S.introStep=Math.max(0,S.introStep-1); render(); break;
+    case 'introskip': S.introSeen=true; go('home'); break;
+    case 'introdone': S.introSeen=true; go('validators'); break;
+    case 'replayintro': closeSheet(); S.introSeen=false; S.introStep=0; S.screen='intro'; render(); window.scrollTo(0,0); break;
+    case 'cplant': collectionSheet(el.dataset.sp); break;
+    case 'pchart': { const r=el.getBoundingClientRect(), n=Number(el.dataset.n); S.pbar=Math.max(0,Math.min(n-1,Math.floor((e.clientX-r.left)/r.width*n))); render(); break; }
+    case 'prange': S.prange=Number(el.dataset.val); S.pbar=null; render(); break;
+    case 'seeall': toast('Mockup: this opens your full payout history.'); break;
+    case 'togo': go('collection'); break;
+    case 'pretry': S.pstate='loading'; render(); setTimeout(()=>{S.pstate='ok'; if(S.screen==='progress') render()},1200); break;
+    case 'recheck': closeSheet(); applyTx(curTx); break;
+    case 'retrytx': runTx(curTx); break;
+    case 'reactivate': closeSheet(); runTx('reactivate'); break;
+    case 'stopsheet': stopSheet(); break;
+    case 'stopconfirm': closeSheet(); runTx('stop'); break;
+    case 'stoppct': { const n = el.dataset.val==='100' ? act() : Math.floor(act()*Number(el.dataset.val)/100); S.stopAmt=String(n); const i=$('#stopamt'); if(i) i.value=S.stopAmt; paintStop(); break; }
+    case 'skipwait': S.pReady+=S.pWait; S.pWait=0; syncMode(); render(); controlsSheet(); break;
+    case 'mockmixed': { const t=total(); S.stakedAmt=t; S.pWait=Math.round(t*.25); S.pReady=Math.round(t*.15); S.released=false; S.mode='active'; syncMode(); S.banner=true; render(); controlsSheet(); break; }
+    case 'dowithdraw': closeSheet(); runTx(S.released?'withdraw':'release'); break;
+    case 'status': go('stake'); break;
+    case 'compare': go('validators'); break;
+    case 'addstake': S.vsel='orchard'; S.amount=''; go('amount'); break;
+    case 'sretry': S.sstate='loading'; render(); setTimeout(()=>{S.sstate='ok'; if(S.screen==='stake') render()},1200); break;
+    case 'close': closeSheet(); break;
+    case 'dismiss': S.banner=false; render(); break;
+    default: if(MOCK[a]){ if(a==='alt'||a==='reactivate') closeSheet(); toast(MOCK[a]) }
+  }
+});
+document.addEventListener('input',e=>{
+  if(e.target.id==='amt'||e.target.id==='stopamt'){
+    let v=e.target.value.replace(/[^0-9.]/g,''); const i=v.indexOf('.'); if(i>=0) v=v.slice(0,i+1)+v.slice(i+1).replace(/\./g,'');
+    e.target.value=v; if(e.target.id==='amt'){S.amount=v; paintAmount();} else {S.stopAmt=v; paintStop();} return;
+  }
+  if(e.target.id==='rewards'){S.rewards=Number(e.target.value);$('#rw').textContent=S.rewards.toFixed(1);render()}
+});
+document.addEventListener('keydown',e=>{
+  if((e.key==='Enter'||e.key===' ')&&e.target.dataset&&e.target.dataset.bar!==undefined){e.preventDefault();S.pbar=Number(e.target.dataset.bar);render();return}
+  if(e.key==='Escape' && !$('#sheet').dataset.lock) closeSheet();
+  if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('plot')){e.preventDefault();plantSheet(Number(e.target.dataset.i))}
+});
+let tx=null;
+document.addEventListener('touchstart',e=>{ if(S.screen==='intro') tx=e.touches[0].clientX; },{passive:true});
+document.addEventListener('touchend',e=>{
+  if(S.screen!=='intro'||tx===null) return; const dx=e.changedTouches[0].clientX-tx; tx=null;
+  if(Math.abs(dx)<50) return;
+  if(dx<0 && S.introStep<2){S.introStep++; render();} else if(dx>0 && S.introStep>0){S.introStep--; render();}
+},{passive:true});
+document.addEventListener('keydown',e=>{
+  if(S.screen!=='intro') return;
+  if(e.key==='ArrowRight' && S.introStep<2){S.introStep++; render();}
+  if(e.key==='ArrowLeft' && S.introStep>0){S.introStep--; render();}
+});
+render();
+</script>
+</body>
+</html>

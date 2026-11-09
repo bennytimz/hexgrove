@@ -7,6 +7,13 @@ const KNOWN_MOCK_FAIL_MODES = ['notinpay', 'timeout', 'syncing', 'declined']
 async function bootstrap() {
   if (import.meta.env.DEV) {
     const params = new URLSearchParams(location.search)
+
+    if (params.get('probe') === '1') {
+      const { default: ProbeScreen } = await import('./probe/ProbeScreen.vue')
+      createApp(ProbeScreen).mount('#app')
+      return
+    }
+
     if (params.get('mock') === '1') {
       const requested = params.get('fail')
       const fail = requested && KNOWN_MOCK_FAIL_MODES.includes(requested) ? requested : null

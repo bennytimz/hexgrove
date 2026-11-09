@@ -3,6 +3,7 @@ import type { NimiqProvider } from '../nimiq/provider'
 import { onMounted, ref } from 'vue'
 import { formatNim } from '../lib/luna'
 import { plotsForStake } from '../lib/plots'
+import { formatWaitRemaining } from '../lib/waiting'
 import { DEFAULT_TESTNET_RPC_URL, getHostNetwork, getProvider, NimiqProviderError, resetProvider } from '../nimiq/provider'
 
 type Phase =
@@ -27,7 +28,10 @@ const accounts = ref<string[]>([])
 const combinedState = ref<CombinedState>('loading')
 const spendableLuna = ref(0)
 const spendableUnsupported = ref(false)
-const stakedLuna = ref<bigint>(0n)
+const earningLuna = ref<bigint>(0n)
+const waitingLuna = ref<bigint>(0n)
+const waitingReadyText = ref('')
+const releasedLuna = ref<bigint>(0n)
 const stakeHolders = ref<string[]>([])
 const stakeComingSoon = ref(false)
 
@@ -141,33 +145,73 @@ async function loadCombined() {
       spendableLuna.value = 0
     }
 
-    let totalStakedLuna = 0n
+    interface StakerLookup {
+      address: string
+      active: bigint
+      inactive: bigint
+      retired: bigint
+      inactiveFrom: number | null
+      error: boolean
+    }
+
+    const [blockNumber, stakerResults] = await Promise.all([
+      nimiq.getBlockNumber(),
+      Promise.all(accounts.value.map(async (addr): Promise<StakerLookup> => {
+        try {
+          const staker = await nimiq.request<{
+            balance?: number
+            inactiveBalance?: number
+            inactiveFrom?: number | null
+            retiredBalance?: number
+          } | null>({ method: 'getStakerByAddress', params: [addr] })
+
+          return {
+            address: addr,
+            active: BigInt(staker?.balance ?? 0),
+            inactive: BigInt(staker?.inactiveBalance ?? 0),
+            retired: BigInt(staker?.retiredBalance ?? 0),
+            inactiveFrom: staker?.inactiveFrom ?? null,
+            error: false,
+          }
+        }
+        catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          const noStaker = /no staker with address/i.test(message)
+          if (!noStaker) {
+            console.error(`Could not load staker state for ${addr}:`, error)
+          }
+          return { address: addr, active: 0n, inactive: 0n, retired: 0n, inactiveFrom: null, error: !noStaker }
+        }
+      })),
+    ])
+
+    let totalEarning = 0n
+    let totalWaiting = 0n
+    let totalReleased = 0n
+    let latestInactiveFrom: number | null = null
     const holders: string[] = []
     let anyRealError = false
 
-    await Promise.all(accounts.value.map(async (addr) => {
-      try {
-        const staker = await nimiq.request<{ balance?: number } | null>({
-          method: 'getStakerByAddress',
-          params: [addr],
-        })
-        const balance = staker && typeof staker.balance === 'number' ? staker.balance : 0
-        if (balance > 0) {
-          totalStakedLuna += BigInt(balance)
-          holders.push(addr)
-        }
+    for (const r of stakerResults) {
+      if (r.error)
+        anyRealError = true
+      if (r.active > 0n || r.inactive > 0n || r.retired > 0n)
+        holders.push(r.address)
+      totalEarning += r.active
+      totalWaiting += r.inactive
+      totalReleased += r.retired
+      if (r.inactive > 0n && r.inactiveFrom !== null) {
+        latestInactiveFrom = latestInactiveFrom === null ? r.inactiveFrom : Math.max(latestInactiveFrom, r.inactiveFrom)
       }
-      catch (error) {
-        const message = error instanceof Error ? error.message : String(error)
-        if (!/no staker with address/i.test(message)) {
-          console.error(`Could not load staker state for ${addr}:`, error)
-          anyRealError = true
-        }
-      }
-    }))
+    }
 
-    stakedLuna.value = totalStakedLuna
+    earningLuna.value = totalEarning
+    waitingLuna.value = totalWaiting
+    releasedLuna.value = totalReleased
     stakeHolders.value = holders
+    waitingReadyText.value = totalWaiting > 0n && latestInactiveFrom !== null
+      ? formatWaitRemaining(latestInactiveFrom - blockNumber)
+      : ''
 
     const previousRaw = sessionStorage.getItem(SPENDABLE_STORAGE_KEY)
     const previousSpendable = previousRaw !== null ? Number(previousRaw) : null
@@ -176,7 +220,7 @@ async function loadCombined() {
       sessionStorage.setItem(SPENDABLE_STORAGE_KEY, String(spendableLuna.value))
     }
 
-    if (totalStakedLuna > 0n) {
+    if (totalEarning > 0n || totalWaiting > 0n || totalReleased > 0n) {
       combinedState.value = 'staked'
     }
     else if (anyRealError) {
@@ -270,13 +314,6 @@ onMounted(connect)
     </section>
 
     <section v-else-if="phase === 'ready'" class="panel">
-      <div class="stat">
-        <small>{{ accounts.length > 1 ? 'Accounts' : 'Account' }}</small>
-        <b class="addr-list">
-          <span v-for="(a, i) in accounts" :key="a">{{ i > 0 ? ', ' : '' }}{{ shortAddr(a) }}</span>
-        </b>
-      </div>
-
       <p v-if="combinedState === 'loading'" class="status">
         Loading your accounts…
       </p>
@@ -299,19 +336,25 @@ onMounted(connect)
 
         <template v-if="combinedState === 'staked'">
           <div class="stat">
-            <small>Staked</small>
-            <b>{{ formatNim(stakedLuna) }} NIM</b>
+            <small>Earning</small>
+            <b>{{ formatNim(earningLuna) }} NIM</b>
           </div>
           <div class="stat">
             <small>Plots</small>
-            <b>{{ plotsForStake(stakedLuna) }}</b>
+            <b>{{ plotsForStake(earningLuna) }}</b>
           </div>
-          <div class="stat">
-            <small>{{ stakeHolders.length > 1 ? 'Held across' : 'Held by' }}</small>
-            <b class="addr-list">
-              <span v-for="(h, i) in stakeHolders" :key="h">{{ i > 0 ? ', ' : '' }}{{ shortAddr(h) }}</span>
-            </b>
+          <div v-if="waitingLuna > 0n" class="stat">
+            <small>Waiting</small>
+            <b>{{ formatNim(waitingLuna) }} NIM</b>
+            <span class="hint">{{ waitingReadyText }}</span>
           </div>
+          <div v-if="releasedLuna > 0n" class="stat">
+            <small>Released</small>
+            <b>{{ formatNim(releasedLuna) }} NIM</b>
+          </div>
+          <p class="hint">
+            {{ stakeHolders.length > 1 ? 'Held across' : 'Held by' }} {{ stakeHolders.map(shortAddr).join(', ') }}
+          </p>
         </template>
 
         <template v-else-if="combinedState === 'hidden'">
@@ -453,11 +496,6 @@ onMounted(connect)
 
 .stat b {
   font-size: 23px;
-  font-variant-numeric: tabular-nums;
-}
-
-.addr-list {
-  font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
 </style>

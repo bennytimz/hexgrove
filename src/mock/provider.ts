@@ -13,14 +13,21 @@ import { NimiqProviderError } from '@nimiq/mini-app-sdk'
 export type MockFailMode = 'notinpay' | 'timeout' | 'syncing' | 'declined' | null
 
 export const MOCK_ADDRESSES = [
-  'NQ07 MOCK 0000 0000 0001 0000 0000 0000 0001',
-  'NQ26 MOCK 0000 0000 0002 0000 0000 0000 0002',
+  'NQ07 MOCK 0000 0000 0001 0000 0000 0000 0001', // earning
+  'NQ26 MOCK 0000 0000 0002 0000 0000 0000 0002', // empty
+  'NQ48 MOCK 0000 0000 0003 0000 0000 0000 0003', // waiting
 ] as const
 
 export const MOCK_BALANCES_LUNA: Readonly<Record<string, number>> = {
   [MOCK_ADDRESSES[0]]: 11_000_000_000, // 110,000 NIM
   [MOCK_ADDRESSES[1]]: 0,
+  [MOCK_ADDRESSES[2]]: 0,
 }
+
+export const MOCK_BLOCK_NUMBER = 1_000_000
+/** Inactive balance for MOCK_ADDRESSES[2]: 50 NIM, released about an hour from MOCK_BLOCK_NUMBER (1 block ~ 1 second). */
+export const MOCK_WAITING_INACTIVE_LUNA = 5_000_000
+export const MOCK_WAITING_INACTIVE_FROM = MOCK_BLOCK_NUMBER + 3600
 
 /** Just past provider.ts's default 10s init() timeout, so the first connect fails. */
 export const MOCK_TIMEOUT_DELAY_MS = 11_000
@@ -60,7 +67,7 @@ export function createMockProvider(failMode: MockFailMode) {
       return true
     },
     async getBlockNumber(): Promise<number> {
-      return 1_000_000
+      return MOCK_BLOCK_NUMBER
     },
     getNetwork(): string {
       return 'testnet'
@@ -90,9 +97,23 @@ export function createMockProvider(failMode: MockFailMode) {
     async request<T>(args: { method: string, params?: unknown[] | object }): Promise<T> {
       if (args.method === 'getStakerByAddress') {
         const address = Array.isArray(args.params) ? args.params[0] : undefined
-        const balance = MOCK_BALANCES_LUNA[address as string] ?? 0
-        if (balance > 0) {
-          return { balance, delegation: null, inactiveBalance: 0, retiredBalance: 0 } as T
+        if (address === MOCK_ADDRESSES[0]) {
+          return {
+            balance: MOCK_BALANCES_LUNA[MOCK_ADDRESSES[0]],
+            delegation: null,
+            inactiveBalance: 0,
+            inactiveFrom: null,
+            retiredBalance: 0,
+          } as T
+        }
+        if (address === MOCK_ADDRESSES[2]) {
+          return {
+            balance: 0,
+            delegation: null,
+            inactiveBalance: MOCK_WAITING_INACTIVE_LUNA,
+            inactiveFrom: MOCK_WAITING_INACTIVE_FROM,
+            retiredBalance: 0,
+          } as T
         }
         // Mirrors the real node's reporting of "never staked" as an RPC error.
         throw new Error(`getStakerByAddress: no staker with address ${address}`)

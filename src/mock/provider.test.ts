@@ -3,7 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   installMockProvider,
   MOCK_ADDRESSES,
+  MOCK_BLOCK_NUMBER,
   MOCK_TIMEOUT_DELAY_MS,
+  MOCK_WAITING_INACTIVE_FROM,
+  MOCK_WAITING_INACTIVE_LUNA,
 } from './provider'
 
 interface StubWindow {
@@ -96,6 +99,18 @@ describe('installMockProvider', () => {
 
     await expect(nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[1]] }))
       .rejects.toThrow(/no staker with address/i)
+  })
+
+  it('answers request("getStakerByAddress") with a waiting balance for the third mock address', async () => {
+    installMockProvider(null)
+    const nimiq = win.nimiq as any
+
+    const staker = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[2]] })
+    expect(staker.balance).toBe(0)
+    expect(staker.inactiveBalance).toBe(MOCK_WAITING_INACTIVE_LUNA)
+    expect(staker.inactiveFrom).toBe(MOCK_WAITING_INACTIVE_FROM)
+    expect(staker.inactiveFrom).toBeGreaterThan(MOCK_BLOCK_NUMBER)
+    await expect(nimiq.getBlockNumber()).resolves.toBe(MOCK_BLOCK_NUMBER)
   })
 
   it('throws "not mocked yet" for any other request() method', async () => {

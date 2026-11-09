@@ -198,7 +198,7 @@ The app has four tabs (Garden, Stake, Collection, Progress) plus an intro, and e
 
 ## Errors and copy
 
-Every action that needs Nimiq Pay approval ends in one of five outcomes, and each has fixed wording and one next action. Reliability and error handling carry most of the 45 functionality points, so build these before polish.
+Every action that needs Nimiq Pay approval ends in one of six outcomes, and each has fixed wording and one next action. Reliability and error handling carry most of the 45 functionality points, so build these before polish.
 
 | Outcome | Title | Message | Next action |
 | --- | --- | --- | --- |
@@ -207,6 +207,7 @@ Every action that needs Nimiq Pay approval ends in one of five outcomes, and eac
 | Network down | Can't reach the network | Check your connection. Nothing has been sent. | Try again |
 | Maybe sent | We couldn't confirm yet | Your stake may or may not have gone through. Check your Nimiq Pay history before trying again, so you don't stake twice. | Check again, or Back to garden. Never a plain retry |
 | Withdraw step 2 fails | Almost done | Your stake is released, but the withdrawal didn't go through. Your NIM is safe. Finish when you're ready. | Finish withdrawing |
+| Blocked by a pending transaction | One at a time | Nimiq Pay is still finishing your last request. Wait a moment, then try again. | Try again |
 
 Use the same pattern for stake, stop earning, reactivate and withdraw, replacing "stake" with the right noun.
 
@@ -214,6 +215,7 @@ Use the same pattern for stake, stop earning, reactivate and withdraw, replacing
 
 - While waiting for approval, disable the button, lock the sheet, and save the pending intent locally so a restart can recover it.
 - For "maybe sent", poll the chain for the transaction or the updated stake for about 30 seconds before showing the unconfirmed message.
+- Detect "blocked by a pending transaction" as a `NimiqProviderError` of type `INTERNAL_ERROR`, code -32603, whose message mentions a pending transaction (seen on testnet, 2026-11-09, see Testnet observations below). Show the fixed copy above, never the raw message.
 - Do all money math in integer Luna. NIM has up to 5 decimal places.
 - Derive the lifecycle step from chain state every time the app opens, never from local memory.
 
@@ -316,6 +318,16 @@ Ten things are still unconfirmed, and the first four change screens, so settle t
 | # | Question | Answer |
 | --- | --- | --- |
 | 11 | Does Nimiq Pay accept plain http custom URLs, or only HTTPS? | Yes. Confirmed on an iPhone, Nimiq Pay testnet, 2026-11-09: a plain `http://` LAN Custom URL (`npm run dev -- --host`) loaded Hexgrove inside Nimiq Pay. `listAccounts`, `getBalance` and `getHostNetwork` also confirmed working against testnet in the same session |
+
+**Testnet observations, 2026-11-09**
+
+Recorded as seen, not as verified. None of these answer a numbered question above on their own.
+
+- Open question 4: `getPolicyConstants` on testnet reports `minimumStake: 10000000` Luna (100 NIM), read from chain. A real 100 NIM stake has not been confirmed yet.
+- Nimiq Pay refuses a new transaction while one is already pending: `NimiqProviderError` type `INTERNAL_ERROR`, code -32603, message "A transaction is still pending. Wait for it to resolve before sending another." Added as a sixth outcome in Errors and copy, above.
+- A 50 NIM Create Staker transaction returned `TRANSACTION_OUTCOME_UNKNOWN` (code -32001) and stayed Pending in Nimiq Pay for 20+ minutes with no staker record appearing on chain. Cause not confirmed. Nimiq Pay also showed "Network consensus lost. Syncing with network." during this time.
+- Open question 9: the testnet validator list (`getActiveValidators`) carries no fee or reliability score. That question needs another data source.
+- Chain policy facts read from `getPolicyConstants` on testnet: 1-second blocks, a batch is 60 blocks, an epoch is 43,200 blocks (12 hours), the transaction validity window is 7,200 blocks.
 
 ## Test plan
 

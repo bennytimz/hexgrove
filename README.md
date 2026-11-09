@@ -12,6 +12,12 @@ Build order step 1 only: a single screen that connects to Nimiq Pay, picks an ac
 
 Confirmed working on a real phone (iPhone, Nimiq Pay, testnet, 2026-11-09): the plain-http LAN Custom URL, `listAccounts`, `getBalance`, and `getHostNetwork`.
 
+## Live URL
+
+**https://hexgrove.vercel.app/**
+
+Deployed on Vercel, connected to this GitHub repo: every push to `main` redeploys automatically. To open it in Nimiq Pay: **Mini Apps → Custom URL** → paste the URL above.
+
 ## Setup
 
 ```bash

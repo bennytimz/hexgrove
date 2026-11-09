@@ -7,7 +7,7 @@ import { computed, onMounted, ref } from 'vue'
 import HexGarden from './HexGarden.vue'
 import { formatNim } from '../lib/luna'
 import { PREVIEW_PLANTS } from '../lib/plants'
-import { plotsForStake } from '../lib/plots'
+import { nextTier, plotsForStake } from '../lib/plots'
 import { compactAddress, computeSkyState } from '../lib/sky'
 import { computeWateringState, waterToday } from '../lib/watering'
 import { formatWaitRemaining } from '../lib/waiting'
@@ -63,6 +63,23 @@ function togglePreview() {
 const realPlants = computed<PlantData[]>(() => {
   const count = plotsForStake(earningLuna.value)
   return Array.from({ length: count }, () => ({ species: 'daisy' as const, stage: 0 }))
+})
+
+/**
+ * Faint outlines for the next tier, with how much more NIM unlocks them.
+ * Deliberately shows locked plots — a documented exception to the spec's
+ * "don't tease locked plots" rule, see docs/SPEC.md.
+ */
+const lockedInfo = computed(() => {
+  const next = nextTier(earningLuna.value)
+  if (!next)
+    return null
+  const count = next.plots - realPlants.value.length
+  const deltaLuna = next.thresholdLuna - earningLuna.value
+  return {
+    count,
+    hint: `${formatNim(deltaLuna)} more NIM unlocks ${count} more plot${count === 1 ? '' : 's'}`,
+  }
 })
 
 const deepLink = `nimiqpay://miniapp?url=${encodeURIComponent(location.href)}`
@@ -491,6 +508,7 @@ onMounted(connect)
           <HexGarden
             :plants="realPlants" :watered="watered" :pulse="pulse"
             :sky-condition="skyCondition" :sky-label="skyLabel"
+            :locked-plots="lockedInfo?.count ?? 0" :unlock-hint="lockedInfo?.hint"
           />
 
           <div class="stat">

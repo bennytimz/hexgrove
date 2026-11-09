@@ -204,7 +204,7 @@ The app has four tabs (Garden, Stake, Collection, Progress) plus an intro, and e
 - Bottom tab bar is sticky. Sticky action footers sit directly above it.
 - The Staked amount is the largest number on the home stats row (about 23px against 17px), and shrinks for 7 or more characters so nothing clips on a 320px phone.
 - Never show a blank screen. Show cached data with a "last updated" label, a skeleton while loading, or a clear message with a retry.
-- Gardens show only owned plots. Do not tease locked plots, which would push people to stake more.
+- ~~Gardens show only owned plots. Do not tease locked plots, which would push people to stake more.~~ **Deviation, 2026-11-09:** the home garden now shows faint, dashed outlines of the next tier's locked plots, with a short line of how much more NIM unlocks them (e.g. "100,000 more NIM unlocks 7 more plots"), per explicit instruction overriding this rule. See `src/lib/plots.ts` `nextTier()` and `HexGarden.vue`'s `lockedPlots`/`unlockHint` props.
 
 ## Errors and copy
 

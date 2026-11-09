@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { PlantData } from '../lib/plants'
 import type { SkyCondition } from '../lib/sky'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { hexPoints, layoutGarden } from '../lib/hexLayout'
 import { plantSvgMarkup, STAGE_NAMES } from '../lib/plants'
 
@@ -12,13 +12,18 @@ const props = withDefaults(defineProps<{
   pulse?: boolean
   skyCondition?: SkyCondition
   skyLabel?: string
+  /** Faint, unowned outlines for the next tier, shown trailing the real plots. */
+  lockedPlots?: number
+  /** Caption for the locked plots, e.g. "100,000 more NIM unlocks 7 more plots". */
+  unlockHint?: string
 }>(), {
   pulse: false,
   skyCondition: 'dusk',
   skyLabel: 'Can\'t check your validator right now',
+  lockedPlots: 0,
 })
 
-const layout = computed(() => layoutGarden(props.plants.length))
+const layout = computed(() => layoutGarden(props.plants.length + props.lockedPlots))
 
 const SKY_TITLES: Record<SkyCondition, string> = { sunny: 'Sunny', stormy: 'Stormy', dusk: 'Dusk' }
 const skyTitle = computed(() => SKY_TITLES[props.skyCondition])
@@ -51,6 +56,28 @@ const RAIN_LINES = Array.from({ length: 16 }, (_, k) => ({
   x: 20 + k * 22 + (k % 3) * 5,
   delay: Number((k * 0.17).toFixed(2)),
 }))
+
+// Falling water drops on watering. transform/opacity only (the "fall"
+// keyframe below), so the global prefers-reduced-motion override already
+// disables this without any extra code here.
+interface Drop { id: number, left: number, delay: number }
+const drops = ref<Drop[]>([])
+let nextDropId = 0
+
+watch(() => props.pulse, (isPulsing) => {
+  if (!isPulsing)
+    return
+  const spawned: Drop[] = Array.from({ length: 16 }, () => ({
+    id: nextDropId++,
+    left: 8 + Math.random() * 84,
+    delay: Math.random() * 0.5,
+  }))
+  drops.value.push(...spawned)
+  const spawnedIds = new Set(spawned.map(d => d.id))
+  setTimeout(() => {
+    drops.value = drops.value.filter(d => !spawnedIds.has(d.id))
+  }, 1700)
+})
 </script>
 
 <template>
@@ -98,15 +125,30 @@ const RAIN_LINES = Array.from({ length: 16 }, (_, k) => ({
       :aria-label="`Your garden, ${plants.length} plot${plants.length === 1 ? '' : 's'}`"
     >
       <g
-        v-for="(pos, i) in layout.positions" :key="i" class="plot" role="img"
-        :aria-label="`Plot ${i + 1}, ${STAGE_NAMES[plants[i].stage].toLowerCase()}`"
+        v-for="(pos, i) in layout.positions" :key="i" class="plot" :class="{ locked: i >= plants.length }"
+        role="img"
+        :aria-label="i < plants.length ? `Plot ${i + 1}, ${STAGE_NAMES[plants[i].stage].toLowerCase()}` : `Locked plot ${i + 1}`"
       >
-        <polygon class="tile" :points="hexPoints(layout.radius * 0.94, pos.x, pos.y)" :fill="tileColor.fill" :stroke="tileColor.stroke" stroke-width="1.6" />
-        <g :transform="`translate(${pos.x.toFixed(1)} ${(pos.y + layout.radius * 0.26).toFixed(1)}) scale(${(layout.radius / 40 * 1.3).toFixed(3)})`">
+        <polygon
+          v-if="i < plants.length" class="tile" :points="hexPoints(layout.radius * 0.94, pos.x, pos.y)"
+          :fill="tileColor.fill" :stroke="tileColor.stroke" stroke-width="1.6"
+        />
+        <polygon
+          v-else class="tile locked-tile" :points="hexPoints(layout.radius * 0.94, pos.x, pos.y)"
+          fill="none" stroke="rgba(255,255,255,.18)" stroke-width="1.4" stroke-dasharray="3 3"
+        />
+        <g v-if="i < plants.length" :transform="`translate(${pos.x.toFixed(1)} ${(pos.y + layout.radius * 0.26).toFixed(1)}) scale(${(layout.radius / 40 * 1.3).toFixed(3)})`">
           <g class="plant" v-html="plantSvgMarkup(plants[i].species, plants[i].stage)" />
         </g>
       </g>
     </svg>
+    <p v-if="unlockHint" class="unlock-hint">
+      {{ unlockHint }}
+    </p>
+    <span
+      v-for="d in drops" :key="d.id" class="drop"
+      :style="{ left: `${d.left}%`, animationDelay: `${d.delay}s` }"
+    />
   </section>
 </template>
 
@@ -243,6 +285,14 @@ const RAIN_LINES = Array.from({ length: 16 }, (_, k) => ({
   height: 290px;
 }
 
+.unlock-hint {
+  margin: 0;
+  padding: 0 14px 14px;
+  font-size: 12.5px;
+  color: var(--mist);
+  text-align: center;
+}
+
 .plant {
   transform-box: fill-box;
   transform-origin: 50% 100%;
@@ -277,6 +327,26 @@ const RAIN_LINES = Array.from({ length: 16 }, (_, k) => ({
   }
   100% {
     transform: scale(1);
+  }
+}
+
+.drop {
+  position: absolute;
+  top: -14px;
+  width: 6px;
+  height: 12px;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: #8fd3ff;
+  opacity: .9;
+  animation: fall .9s ease-in forwards;
+  z-index: 4;
+  pointer-events: none;
+}
+
+@keyframes fall {
+  to {
+    transform: translateY(310px);
+    opacity: 0;
   }
 }
 </style>

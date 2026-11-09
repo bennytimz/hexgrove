@@ -18,3 +18,19 @@ export function plotsForStake(stakedLuna: bigint): number {
   }
   return plots
 }
+
+export interface NextTier {
+  plots: number
+  thresholdLuna: bigint
+}
+
+/** The next unreached tier, or null once already at the top tier (19 plots). */
+export function nextTier(stakedLuna: bigint): NextTier | null {
+  for (const tier of PLOT_TIERS) {
+    const thresholdLuna = tier.stakeNim * LUNA_PER_NIM
+    if (stakedLuna < thresholdLuna) {
+      return { plots: tier.plots, thresholdLuna }
+    }
+  }
+  return null
+}

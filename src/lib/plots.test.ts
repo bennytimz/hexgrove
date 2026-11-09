@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { nimToLuna } from './luna'
-import { plotsForStake } from './plots'
+import { nextTier, plotsForStake } from './plots'
 
 describe('plotsForStake', () => {
   it('returns 0 below the first tier', () => {
@@ -22,5 +22,21 @@ describe('plotsForStake', () => {
 
   it('caps at the highest tier for very large stakes', () => {
     expect(plotsForStake(nimToLuna('21000000000'))).toBe(19)
+  })
+})
+
+describe('nextTier', () => {
+  it('returns the first tier when nothing is staked', () => {
+    expect(nextTier(0n)).toEqual({ plots: 1, thresholdLuna: nimToLuna('100') })
+  })
+
+  it('returns the next unreached tier from partway through one', () => {
+    expect(nextTier(nimToLuna('100'))).toEqual({ plots: 3, thresholdLuna: nimToLuna('5000') })
+    expect(nextTier(nimToLuna('100000'))).toEqual({ plots: 19, thresholdLuna: nimToLuna('400000') })
+  })
+
+  it('is null once at or above the top tier', () => {
+    expect(nextTier(nimToLuna('400000'))).toBeNull()
+    expect(nextTier(nimToLuna('21000000000'))).toBeNull()
   })
 })

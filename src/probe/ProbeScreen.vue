@@ -310,6 +310,8 @@ const rpcUrl = ref(DEFAULT_TESTNET_RPC_URL)
 const chainStateText = ref('Not loaded yet.')
 const chainStateLoading = ref(false)
 const chainStateAt = ref('')
+/** Addresses the last chain-state refresh found an actual stake under. */
+const stakerAddresses = ref<string[]>([])
 
 async function refreshChainState() {
   chainStateLoading.value = true
@@ -340,12 +342,53 @@ async function refreshChainState() {
 
     chainStateText.value = JSON.stringify({ blockNumber, policy, stakers }, null, 2)
     chainStateAt.value = new Date().toLocaleTimeString()
+    stakerAddresses.value = stakers
+      .filter(s => s.result && typeof (s.result as any).balance === 'number' && (s.result as any).balance > 0)
+      .map(s => s.address)
   }
   catch (error) {
     chainStateText.value = `Could not load chain state: ${describeError(error)}`
   }
   finally {
     chainStateLoading.value = false
+  }
+}
+
+// --- Account type check. Read-only: works regardless of network. ---
+// getAccountByAddress is the same RPC call NimJar's chain.js uses to tell
+// a plain account from an HTLC. Checks every listAccounts address plus any
+// staker address the last chain-state refresh found, in case they differ
+// (see docs/SPEC.md, testnet observations, NQ59 vs NQ41).
+const accountTypesText = ref('Not loaded yet.')
+const accountTypesLoading = ref(false)
+
+async function checkAccountTypes() {
+  accountTypesLoading.value = true
+  const targets = [...new Set([...addresses.value, ...stakerAddresses.value])]
+  const id = pushLog('getAccountByAddress', { addresses: targets })
+
+  try {
+    const nimiq = await getProvider()
+    nimiq.setRPCUrl(rpcUrl.value.trim())
+    const results = await Promise.all(targets.map(async (addr) => {
+      try {
+        const account = await nimiq.request({ method: 'getAccountByAddress', params: [addr] })
+        return { address: addr, result: account }
+      }
+      catch (error) {
+        return { address: addr, result: { error: describeError(error) } }
+      }
+    }))
+    accountTypesText.value = JSON.stringify(results, null, 2)
+    updateLog(id, 'ok', JSON.stringify(results))
+  }
+  catch (error) {
+    const message = describeError(error)
+    accountTypesText.value = `Could not load account types: ${message}`
+    updateLog(id, 'error', message)
+  }
+  finally {
+    accountTypesLoading.value = false
   }
 }
 
@@ -486,6 +529,19 @@ function useValidator(addr: string) {
           Last refreshed {{ chainStateAt }}
         </p>
         <pre class="log-pre">{{ chainStateText }}</pre>
+      </section>
+
+      <section class="panel">
+        <h2>Account types</h2>
+        <p class="hint">
+          Raw getAccountByAddress for every listAccounts address, plus any staker address found by
+          the last chain-state refresh above (run that first to include it). Checks each account's
+          `type` — basic account or HTLC. Read-only, works on any network.
+        </p>
+        <button class="btn" type="button" :disabled="accountTypesLoading" @click="checkAccountTypes">
+          {{ accountTypesLoading ? 'Loading…' : 'Check account types' }}
+        </button>
+        <pre class="log-pre">{{ accountTypesText }}</pre>
       </section>
 
       <section class="panel">

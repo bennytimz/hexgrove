@@ -15,7 +15,10 @@ type Phase =
   | 'accountError'
   | 'ready'
 
-type CombinedState = 'loading' | 'error' | 'empty' | 'staked'
+type CombinedState = 'loading' | 'error' | 'empty' | 'staked' | 'hidden'
+
+/** Remembers spendable balance across reloads in this tab, to tell "never staked" from "staked somewhere we can't see". */
+const SPENDABLE_STORAGE_KEY = 'hexgrove.lastSpendableLuna'
 
 const phase = ref<Phase>('connecting')
 const network = ref<'mainnet' | 'testnet' | undefined>(undefined)
@@ -166,11 +169,24 @@ async function loadCombined() {
     stakedLuna.value = totalStakedLuna
     stakeHolders.value = holders
 
+    const previousRaw = sessionStorage.getItem(SPENDABLE_STORAGE_KEY)
+    const previousSpendable = previousRaw !== null ? Number(previousRaw) : null
+    const droppedRecently = !spendableUnsupported.value && previousSpendable !== null && spendableLuna.value < previousSpendable
+    if (!spendableUnsupported.value) {
+      sessionStorage.setItem(SPENDABLE_STORAGE_KEY, String(spendableLuna.value))
+    }
+
     if (totalStakedLuna > 0n) {
       combinedState.value = 'staked'
     }
     else if (anyRealError) {
       combinedState.value = 'error'
+    }
+    else if (droppedRecently) {
+      // No staker record under any listAccounts address, but the balance we
+      // can see dropped since last time — likely staked under an address we
+      // can't see (see docs/SPEC.md, NQ59 vs NQ41), not never-staked.
+      combinedState.value = 'hidden'
     }
     else {
       combinedState.value = 'empty'
@@ -296,6 +312,14 @@ onMounted(connect)
               <span v-for="(h, i) in stakeHolders" :key="h">{{ i > 0 ? ', ' : '' }}{{ shortAddr(h) }}</span>
             </b>
           </div>
+        </template>
+
+        <template v-else-if="combinedState === 'hidden'">
+          <h1>We can't see your stake yet</h1>
+          <p>Pull to refresh.</p>
+          <button class="btn-ghost" type="button" @click="loadCombined">
+            Refresh
+          </button>
         </template>
 
         <template v-else>

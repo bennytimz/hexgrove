@@ -317,24 +317,28 @@ async function refreshChainState() {
     const nimiq = await getProvider()
     nimiq.setRPCUrl(rpcUrl.value.trim())
 
-    const stakerPromise = address.value
-      ? nimiq.request({ method: 'getStakerByAddress', params: [address.value] }).catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : String(error)
-          if (/no staker with address/i.test(message))
-            return { note: 'No staker record yet for this address.' }
-          return { error: describeError(error) }
-        })
-      : Promise.resolve({ note: 'No address selected.' })
+    // Every address from listAccounts, not just the selected one: the staker
+    // can turn out to be registered under an address listAccounts never
+    // returns at all (see docs/SPEC.md, testnet observations, NQ59 vs NQ41).
+    // This only checks what listAccounts gave us; it can't find a staker
+    // hiding somewhere else.
+    const stakers = await Promise.all(addresses.value.map(async (addr) => {
+      try {
+        const result = await nimiq.request({ method: 'getStakerByAddress', params: [addr] })
+        return { address: addr, result }
+      }
+      catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        if (/no staker with address/i.test(message))
+          return { address: addr, result: { note: 'No staker record for this address.' } }
+        return { address: addr, result: { error: describeError(error) } }
+      }
+    }))
 
     const policyPromise = nimiq.request({ method: 'getPolicyConstants' }).catch((error: unknown) => ({ error: describeError(error) }))
+    const [blockNumber, policy] = await Promise.all([nimiq.getBlockNumber(), policyPromise])
 
-    const [blockNumber, staker, policy] = await Promise.all([
-      nimiq.getBlockNumber(),
-      stakerPromise,
-      policyPromise,
-    ])
-
-    chainStateText.value = JSON.stringify({ blockNumber, staker, policy }, null, 2)
+    chainStateText.value = JSON.stringify({ blockNumber, policy, stakers }, null, 2)
     chainStateAt.value = new Date().toLocaleTimeString()
   }
   catch (error) {
@@ -466,8 +470,10 @@ function useValidator(addr: string) {
       <section class="panel">
         <h2>Chain state</h2>
         <p class="hint">
-          Raw getStakerByAddress / getPolicyConstants via nimiq.request(). inactiveFrom and
-          inactiveRelease answer open question 3. Read-only, works on any network.
+          Raw getStakerByAddress for every address from listAccounts, plus getPolicyConstants, via
+          nimiq.request(). inactiveFrom and inactiveRelease answer open question 3. Read-only, works
+          on any network. Only checks addresses listAccounts returned — the staker can be registered
+          under a different address entirely (see SPEC.md, NQ59 vs NQ41).
         </p>
         <label class="field">
           RPC URL

@@ -13,18 +13,19 @@ type Phase =
   | 'loadingAccounts'
   | 'accountDeclined'
   | 'accountError'
-  | 'pickAccount'
   | 'ready'
 
-type StakerState = 'loading' | 'error' | 'empty' | 'staked'
+type CombinedState = 'loading' | 'error' | 'empty' | 'staked'
 
 const phase = ref<Phase>('connecting')
 const network = ref<'mainnet' | 'testnet' | undefined>(undefined)
 const accounts = ref<string[]>([])
-const selectedAddress = ref<string | null>(null)
 
-const stakerState = ref<StakerState>('loading')
+const combinedState = ref<CombinedState>('loading')
+const spendableLuna = ref(0)
+const spendableUnsupported = ref(false)
 const stakedLuna = ref<bigint>(0n)
+const stakeHolders = ref<string[]>([])
 const stakeComingSoon = ref(false)
 
 const deepLink = `nimiqpay://miniapp?url=${encodeURIComponent(location.href)}`
@@ -82,12 +83,8 @@ async function loadAccounts(nimiq: NimiqProvider) {
     const result = await nimiq.listAccounts()
     accounts.value = result
     network.value = getHostNetwork()
-    if (result.length > 1) {
-      phase.value = 'pickAccount'
-    }
-    else {
-      selectAddress(result[0])
-    }
+    phase.value = 'ready'
+    loadCombined()
   }
   catch (error) {
     if (NimiqProviderError.is(error) && error.type === 'PERMISSION_DENIED') {
@@ -111,41 +108,77 @@ async function retryAccounts() {
   }
 }
 
-function selectAddress(address: string) {
-  selectedAddress.value = address
-  phase.value = 'ready'
-  loadStaker()
-}
-
-/** Reads the staker record from chain, the same RPC call the probe uses. */
-async function loadStaker() {
-  stakerState.value = 'loading'
+/**
+ * No account picker: looks up balance and staker state for every address
+ * listAccounts returned, and combines them. This only checks what
+ * listAccounts gave us — a stake can be registered under a different
+ * address entirely (see docs/SPEC.md, testnet observations, NQ59 vs NQ41).
+ */
+async function loadCombined() {
+  combinedState.value = 'loading'
   try {
     const nimiq = await getProvider()
     nimiq.setRPCUrl(DEFAULT_TESTNET_RPC_URL)
-    const staker = await nimiq.request<{ balance?: number } | null>({
-      method: 'getStakerByAddress',
-      params: [selectedAddress.value],
-    })
 
-    const balance = staker && typeof staker.balance === 'number' ? staker.balance : 0
-    if (balance > 0) {
-      stakedLuna.value = BigInt(balance)
-      stakerState.value = 'staked'
+    if (typeof nimiq.getBalance === 'function') {
+      spendableUnsupported.value = false
+      const balances = await Promise.all(accounts.value.map(async (addr) => {
+        try {
+          return await nimiq.getBalance(addr)
+        }
+        catch (error) {
+          console.error(`Could not load balance for ${addr}:`, error)
+          return 0
+        }
+      }))
+      spendableLuna.value = balances.reduce((sum, b) => sum + b, 0)
     }
     else {
-      stakerState.value = 'empty'
+      spendableUnsupported.value = true
+      spendableLuna.value = 0
+    }
+
+    let totalStakedLuna = 0n
+    const holders: string[] = []
+    let anyRealError = false
+
+    await Promise.all(accounts.value.map(async (addr) => {
+      try {
+        const staker = await nimiq.request<{ balance?: number } | null>({
+          method: 'getStakerByAddress',
+          params: [addr],
+        })
+        const balance = staker && typeof staker.balance === 'number' ? staker.balance : 0
+        if (balance > 0) {
+          totalStakedLuna += BigInt(balance)
+          holders.push(addr)
+        }
+      }
+      catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        if (!/no staker with address/i.test(message)) {
+          console.error(`Could not load staker state for ${addr}:`, error)
+          anyRealError = true
+        }
+      }
+    }))
+
+    stakedLuna.value = totalStakedLuna
+    stakeHolders.value = holders
+
+    if (totalStakedLuna > 0n) {
+      combinedState.value = 'staked'
+    }
+    else if (anyRealError) {
+      combinedState.value = 'error'
+    }
+    else {
+      combinedState.value = 'empty'
     }
   }
   catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
-    if (/no staker with address/i.test(message)) {
-      stakerState.value = 'empty'
-    }
-    else {
-      console.error('Could not load staker state:', error)
-      stakerState.value = 'error'
-    }
+    console.error('Could not load account state:', error)
+    combinedState.value = 'error'
   }
 }
 
@@ -220,57 +253,61 @@ onMounted(connect)
       </button>
     </section>
 
-    <section v-else-if="phase === 'pickAccount'" class="panel">
-      <h1>Choose an account</h1>
-      <p class="hint">Basic accounts only.</p>
-      <ul class="account-list">
-        <li v-for="address in accounts" :key="address">
-          <button class="account-row" type="button" @click="selectAddress(address)">
-            {{ shortAddr(address) }}
-          </button>
-        </li>
-      </ul>
-    </section>
-
-    <section v-else-if="phase === 'ready' && selectedAddress" class="panel">
+    <section v-else-if="phase === 'ready'" class="panel">
       <div class="stat">
-        <small>Account</small>
-        <b :title="selectedAddress">{{ shortAddr(selectedAddress) }}</b>
+        <small>{{ accounts.length > 1 ? 'Accounts' : 'Account' }}</small>
+        <b class="addr-list">
+          <span v-for="(a, i) in accounts" :key="a">{{ i > 0 ? ', ' : '' }}{{ shortAddr(a) }}</span>
+        </b>
       </div>
 
-      <p v-if="stakerState === 'loading'" class="status">
-        Loading your stake…
+      <p v-if="combinedState === 'loading'" class="status">
+        Loading your accounts…
       </p>
 
-      <template v-else-if="stakerState === 'error'">
+      <template v-else-if="combinedState === 'error'">
         <p class="hint" role="alert">
-          Can't load your stake right now.
+          Can't load your accounts right now.
         </p>
-        <button class="btn-ghost" type="button" @click="loadStaker">
+        <button class="btn-ghost" type="button" @click="loadCombined">
           Try again
         </button>
       </template>
 
-      <template v-else-if="stakerState === 'empty'">
-        <h1>Stake NIM. Grow a garden.</h1>
-        <p>Staking NIM grows a garden of hex plots. Rewards vary, and stopping takes time.</p>
-        <button class="btn-primary" type="button" @click="onStakeClick">
-          Stake
-        </button>
-        <p v-if="stakeComingSoon" class="hint">
-          Staking isn't built yet.
-        </p>
-      </template>
+      <template v-else>
+        <div class="stat">
+          <small>Spendable</small>
+          <b v-if="!spendableUnsupported">{{ formatNim(spendableLuna) }} NIM</b>
+          <span v-else class="hint">Update Nimiq Pay to see this.</span>
+        </div>
 
-      <template v-else-if="stakerState === 'staked'">
-        <div class="stat">
-          <small>Staked</small>
-          <b>{{ formatNim(stakedLuna) }} NIM</b>
-        </div>
-        <div class="stat">
-          <small>Plots</small>
-          <b>{{ plotsForStake(stakedLuna) }}</b>
-        </div>
+        <template v-if="combinedState === 'staked'">
+          <div class="stat">
+            <small>Staked</small>
+            <b>{{ formatNim(stakedLuna) }} NIM</b>
+          </div>
+          <div class="stat">
+            <small>Plots</small>
+            <b>{{ plotsForStake(stakedLuna) }}</b>
+          </div>
+          <div class="stat">
+            <small>{{ stakeHolders.length > 1 ? 'Held across' : 'Held by' }}</small>
+            <b class="addr-list">
+              <span v-for="(h, i) in stakeHolders" :key="h">{{ i > 0 ? ', ' : '' }}{{ shortAddr(h) }}</span>
+            </b>
+          </div>
+        </template>
+
+        <template v-else>
+          <h1>Stake NIM. Grow a garden.</h1>
+          <p>Staking NIM grows a garden of hex plots. Rewards vary, and stopping takes time.</p>
+          <button class="btn-primary" type="button" @click="onStakeClick">
+            Stake
+          </button>
+          <p v-if="stakeComingSoon" class="hint">
+            Staking isn't built yet.
+          </p>
+        </template>
       </template>
     </section>
   </main>
@@ -379,28 +416,6 @@ onMounted(connect)
   cursor: pointer;
 }
 
-.account-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.account-row {
-  width: 100%;
-  min-height: 44px;
-  padding: 0 14px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-  font-variant-numeric: tabular-nums;
-}
-
 .stat {
   display: flex;
   flex-direction: column;
@@ -414,6 +429,11 @@ onMounted(connect)
 
 .stat b {
   font-size: 23px;
+  font-variant-numeric: tabular-nums;
+}
+
+.addr-list {
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
 </style>

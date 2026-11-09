@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { nimToLuna } from '../lib/luna'
+import { formatNim, nimToLuna } from '../lib/luna'
 import { getHostNetwork, getProvider, NimiqProviderError, resetProvider } from '../nimiq/provider'
 
 /**
@@ -24,10 +24,12 @@ const phase = ref<Phase>('connecting')
 const network = ref<'mainnet' | 'testnet' | undefined>(undefined)
 const addresses = ref<string[]>([])
 const address = ref<string>('')
+const balances = ref<Record<string, number | null>>({})
 const sending = ref(false)
 
 const isTestnet = computed(() => network.value === 'testnet')
 const canAct = computed(() => phase.value === 'ready' && isTestnet.value && !sending.value)
+const selectedBalance = computed(() => (address.value ? balances.value[address.value] : undefined))
 
 const log = ref<LogEntry[]>([])
 let nextLogId = 1
@@ -93,7 +95,29 @@ async function connect() {
     network.value = getHostNetwork()
     const accounts = await nimiq.listAccounts()
     addresses.value = accounts
-    address.value = accounts[0] ?? ''
+
+    if (typeof nimiq.getBalance === 'function' && accounts.length > 0) {
+      const entries = await Promise.all(accounts.map(async (a): Promise<[string, number | null]> => {
+        try {
+          return [a, await nimiq.getBalance(a)]
+        }
+        catch (error) {
+          console.error(`Probe: could not load balance for ${a}`, error)
+          return [a, null]
+        }
+      }))
+      balances.value = Object.fromEntries(entries)
+
+      const withBalance = entries.filter((e): e is [string, number] => e[1] !== null)
+      address.value = withBalance.length > 0
+        ? withBalance.reduce((best, cur) => (cur[1] > best[1] ? cur : best))[0]
+        : accounts[0] ?? ''
+    }
+    else {
+      balances.value = {}
+      address.value = accounts[0] ?? ''
+    }
+
     phase.value = 'ready'
   }
   catch (error) {
@@ -320,6 +344,70 @@ async function refreshChainState() {
     chainStateLoading.value = false
   }
 }
+
+// --- Validator discovery for the create-staker delegation field. ---
+// getActiveValidators is the same RPC call NimJar's chain.js uses
+// (`validators() { return this.call("getActiveValidators"); }`). Its
+// response shape isn't formally documented, so this reads only the two
+// fields NimJar's server.js actually relies on (`address`, `numStakers`)
+// and otherwise shows the raw response rather than guess at the rest.
+interface ValidatorListEntry {
+  address: string
+  numStakers?: number
+}
+
+const validators = ref<ValidatorListEntry[]>([])
+const validatorsLoading = ref(false)
+const validatorsError = ref('')
+
+async function loadValidators() {
+  validatorsLoading.value = true
+  validatorsError.value = ''
+  validators.value = []
+  const id = pushLog('getActiveValidators', { rpcUrl: rpcUrl.value.trim() })
+
+  try {
+    const nimiq = await getProvider()
+    nimiq.setRPCUrl(rpcUrl.value.trim())
+    const response = await nimiq.request({ method: 'getActiveValidators' })
+    updateLog(id, 'ok', JSON.stringify(response))
+
+    if (!Array.isArray(response)) {
+      validatorsError.value = `Stopped: getActiveValidators did not return a list (got ${typeof response}). See the log entry above for the raw response.`
+      return
+    }
+    if (response.length === 0) {
+      validatorsError.value = 'Stopped: getActiveValidators returned an empty list. No active validators to show.'
+      return
+    }
+
+    const parsed = response
+      .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === 'object' && typeof (entry as any).address === 'string')
+      .map((entry): ValidatorListEntry => ({
+        address: entry.address as string,
+        numStakers: typeof entry.numStakers === 'number' ? entry.numStakers : undefined,
+      }))
+
+    if (parsed.length === 0) {
+      validatorsError.value = 'Stopped: getActiveValidators returned entries with no usable "address" field. See the log entry above for the raw shape.'
+      return
+    }
+
+    validators.value = parsed
+  }
+  catch (error) {
+    const message = describeError(error)
+    updateLog(id, 'error', message)
+    validatorsError.value = `Stopped: could not load validators. ${message}`
+  }
+  finally {
+    validatorsLoading.value = false
+  }
+}
+
+function useValidator(addr: string) {
+  createDelegation.value = addr
+}
 </script>
 
 <template>
@@ -355,6 +443,11 @@ async function refreshChainState() {
             </option>
           </select>
           <b v-else>{{ address ? shortAddr(address) : '(none)' }}</b>
+          <span v-if="addresses.length > 1" class="hint"> (defaulted to the highest balance)</span>
+        </p>
+        <p>
+          Balance:
+          <b>{{ selectedBalance == null ? (selectedBalance === null ? 'could not load' : 'unknown') : `${formatNim(selectedBalance)} NIM` }}</b>
         </p>
         <p>
           Network: <b>{{ network ?? 'unknown' }}</b>
@@ -394,8 +487,21 @@ async function refreshChainState() {
         <p class="hint">
           Open question 4: the real minimum stake.
         </p>
+        <button class="btn" type="button" :disabled="validatorsLoading" @click="loadValidators">
+          {{ validatorsLoading ? 'Loading…' : 'Load testnet validators' }}
+        </button>
+        <p v-if="validatorsError" class="hint" role="alert">
+          {{ validatorsError }}
+        </p>
+        <ul v-if="validators.length" class="validator-list">
+          <li v-for="v in validators" :key="v.address">
+            <button class="btn-small" type="button" @click="useValidator(v.address)">
+              {{ shortAddr(v.address) }}<span v-if="v.numStakers !== undefined"> · {{ v.numStakers }} stakers</span>
+            </button>
+          </li>
+        </ul>
         <label class="field">Delegation (validator address)
-          <input v-model="createDelegation" type="text" placeholder="NQ...">
+          <input v-model="createDelegation" type="text" placeholder="NQ... or tap a validator above">
         </label>
         <label class="field">Amount (NIM)
           <input v-model="createAmount" type="text">
@@ -598,6 +704,30 @@ async function refreshChainState() {
   font-size: 13px;
   cursor: pointer;
   margin-top: 6px;
+}
+
+.validator-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.btn-small {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--edge);
+  background: var(--night);
+  color: var(--text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
 }
 
 .btn:disabled {

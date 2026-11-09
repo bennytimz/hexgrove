@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import ConnectScreen from './components/ConnectScreen.vue'
+import HomeScreen from './components/HomeScreen.vue'
 </script>
 
 <template>
-  <ConnectScreen />
+  <HomeScreen />
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { formatNim, nimToLuna } from '../lib/luna'
-import { getHostNetwork, getProvider, NimiqProviderError, resetProvider } from '../nimiq/provider'
+import { DEFAULT_TESTNET_RPC_URL, getHostNetwork, getProvider, NimiqProviderError, resetProvider } from '../nimiq/provider'
 
 /**
  * Hidden probe for build-order step 2: settling spec open questions 1-6 on
@@ -306,7 +306,7 @@ function removeStake() {
 }
 
 // --- Chain state panel. Read-only: works regardless of network. ---
-const rpcUrl = ref('https://rpc.testnet.nimiqwatch.com')
+const rpcUrl = ref(DEFAULT_TESTNET_RPC_URL)
 const chainStateText = ref('Not loaded yet.')
 const chainStateLoading = ref(false)
 const chainStateAt = ref('')

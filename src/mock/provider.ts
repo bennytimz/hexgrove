@@ -87,7 +87,18 @@ export function createMockProvider(failMode: MockFailMode) {
     sendUpdateStakerTransaction: notImplemented('sendUpdateStakerTransaction'),
     sendRetireStakeTransaction: notImplemented('sendRetireStakeTransaction'),
     sendRemoveStakeTransaction: notImplemented('sendRemoveStakeTransaction'),
-    request: notImplemented('request'),
+    async request<T>(args: { method: string, params?: unknown[] | object }): Promise<T> {
+      if (args.method === 'getStakerByAddress') {
+        const address = Array.isArray(args.params) ? args.params[0] : undefined
+        const balance = MOCK_BALANCES_LUNA[address as string] ?? 0
+        if (balance > 0) {
+          return { balance, delegation: null, inactiveBalance: 0, retiredBalance: 0 } as T
+        }
+        // Mirrors the real node's reporting of "never staked" as an RPC error.
+        throw new Error(`getStakerByAddress: no staker with address ${address}`)
+      }
+      return notImplemented('request')()
+    },
     getRPC: notImplemented('getRPC'),
     setRPC: notImplemented('setRPC'),
   }

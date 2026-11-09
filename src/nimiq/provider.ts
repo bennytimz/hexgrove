@@ -6,6 +6,9 @@ export type { NimiqProvider }
 
 const DEFAULT_TIMEOUT_MS = 10_000
 
+/** Known-working testnet RPC endpoint (same one NimJar's src/server.js defaults to). */
+export const DEFAULT_TESTNET_RPC_URL = 'https://rpc.testnet.nimiqwatch.com'
+
 let providerPromise: Promise<NimiqProvider> | null = null
 
 /**

@@ -86,4 +86,22 @@ describe('installMockProvider', () => {
     await expect(nimiq.sendStakeTransaction({ value: 100_000 })).rejects.toThrow(/not mocked yet/i)
     await expect(nimiq.sign('hello')).rejects.toThrow(/not mocked yet/i)
   })
+
+  it('answers request("getStakerByAddress") for the staked and the empty mock address', async () => {
+    installMockProvider(null)
+    const nimiq = win.nimiq as any
+
+    const staker = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[0]] })
+    expect(staker.balance).toBe(11_000_000_000)
+
+    await expect(nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[1]] }))
+      .rejects.toThrow(/no staker with address/i)
+  })
+
+  it('throws "not mocked yet" for any other request() method', async () => {
+    installMockProvider(null)
+    const nimiq = win.nimiq as any
+
+    await expect(nimiq.request({ method: 'getActiveValidators' })).rejects.toThrow(/not mocked yet/i)
+  })
 })

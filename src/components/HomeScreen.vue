@@ -2,7 +2,8 @@
 import type { NimiqProvider } from '../nimiq/provider'
 import { onMounted, ref } from 'vue'
 import { formatNim } from '../lib/luna'
-import { getHostNetwork, getProvider, NimiqProviderError, resetProvider } from '../nimiq/provider'
+import { plotsForStake } from '../lib/plots'
+import { DEFAULT_TESTNET_RPC_URL, getHostNetwork, getProvider, NimiqProviderError, resetProvider } from '../nimiq/provider'
 
 type Phase =
   | 'connecting'
@@ -15,15 +16,16 @@ type Phase =
   | 'pickAccount'
   | 'ready'
 
+type StakerState = 'loading' | 'error' | 'empty' | 'staked'
+
 const phase = ref<Phase>('connecting')
 const network = ref<'mainnet' | 'testnet' | undefined>(undefined)
 const accounts = ref<string[]>([])
 const selectedAddress = ref<string | null>(null)
 
-const balanceLoading = ref(false)
-const balanceLuna = ref<number | null>(null)
-const balanceError = ref(false)
-const balanceUnsupported = ref(false)
+const stakerState = ref<StakerState>('loading')
+const stakedLuna = ref<bigint>(0n)
+const stakeComingSoon = ref(false)
 
 const deepLink = `nimiqpay://miniapp?url=${encodeURIComponent(location.href)}`
 
@@ -112,30 +114,46 @@ async function retryAccounts() {
 function selectAddress(address: string) {
   selectedAddress.value = address
   phase.value = 'ready'
-  loadBalance()
+  loadStaker()
 }
 
-async function loadBalance() {
-  balanceError.value = false
-  balanceUnsupported.value = false
-  const nimiq = await getProvider()
-
-  if (typeof nimiq.getBalance !== 'function') {
-    balanceUnsupported.value = true
-    return
-  }
-
-  balanceLoading.value = true
+/** Reads the staker record from chain, the same RPC call the probe uses. */
+async function loadStaker() {
+  stakerState.value = 'loading'
   try {
-    balanceLuna.value = await nimiq.getBalance(selectedAddress.value!)
+    const nimiq = await getProvider()
+    nimiq.setRPCUrl(DEFAULT_TESTNET_RPC_URL)
+    const staker = await nimiq.request<{ balance?: number } | null>({
+      method: 'getStakerByAddress',
+      params: [selectedAddress.value],
+    })
+
+    const balance = staker && typeof staker.balance === 'number' ? staker.balance : 0
+    if (balance > 0) {
+      stakedLuna.value = BigInt(balance)
+      stakerState.value = 'staked'
+    }
+    else {
+      stakerState.value = 'empty'
+    }
   }
   catch (error) {
-    console.error('Could not load balance:', error)
-    balanceError.value = true
+    const message = error instanceof Error ? error.message : String(error)
+    if (/no staker with address/i.test(message)) {
+      stakerState.value = 'empty'
+    }
+    else {
+      console.error('Could not load staker state:', error)
+      stakerState.value = 'error'
+    }
   }
-  finally {
-    balanceLoading.value = false
-  }
+}
+
+function onStakeClick() {
+  stakeComingSoon.value = true
+  setTimeout(() => {
+    stakeComingSoon.value = false
+  }, 2000)
 }
 
 const isMock = window.__HEXGROVE_MOCK__ === true
@@ -220,24 +238,40 @@ onMounted(connect)
         <b :title="selectedAddress">{{ shortAddr(selectedAddress) }}</b>
       </div>
 
-      <div class="stat">
-        <small>Available balance</small>
-        <p v-if="balanceLoading" class="status">
-          Loading balance…
+      <p v-if="stakerState === 'loading'" class="status">
+        Loading your stake…
+      </p>
+
+      <template v-else-if="stakerState === 'error'">
+        <p class="hint" role="alert">
+          Can't load your stake right now.
         </p>
-        <p v-else-if="balanceUnsupported" class="hint">
-          Update Nimiq Pay to see your balance here.
+        <button class="btn-ghost" type="button" @click="loadStaker">
+          Try again
+        </button>
+      </template>
+
+      <template v-else-if="stakerState === 'empty'">
+        <h1>Stake NIM. Grow a garden.</h1>
+        <p>Staking NIM grows a garden of hex plots. Rewards vary, and stopping takes time.</p>
+        <button class="btn-primary" type="button" @click="onStakeClick">
+          Stake
+        </button>
+        <p v-if="stakeComingSoon" class="hint">
+          Staking isn't built yet.
         </p>
-        <template v-else-if="balanceError">
-          <p class="hint" role="alert">
-            Can't load your balance right now.
-          </p>
-          <button class="btn-ghost" type="button" @click="loadBalance">
-            Try again
-          </button>
-        </template>
-        <b v-else-if="balanceLuna !== null">{{ formatNim(balanceLuna) }} NIM</b>
-      </div>
+      </template>
+
+      <template v-else-if="stakerState === 'staked'">
+        <div class="stat">
+          <small>Staked</small>
+          <b>{{ formatNim(stakedLuna) }} NIM</b>
+        </div>
+        <div class="stat">
+          <small>Plots</small>
+          <b>{{ plotsForStake(stakedLuna) }}</b>
+        </div>
+      </template>
     </section>
   </main>
 </template>

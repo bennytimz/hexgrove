@@ -28,6 +28,43 @@ describe('layoutGarden', () => {
   })
 })
 
+describe('layoutGarden with locked plots', () => {
+  it('leaves real positions exactly unchanged, whether or not locked plots are requested', () => {
+    const bare = layoutGarden(12)
+    const withLocked = layoutGarden(12, 7)
+    expect(withLocked.positions).toEqual(bare.positions)
+    expect(withLocked.lockedPositions).toHaveLength(7)
+  })
+
+  it('has no locked positions when lockedCount is 0', () => {
+    expect(layoutGarden(12, 0).lockedPositions).toHaveLength(0)
+  })
+
+  it('snaps every row (real and locked together) onto one evenly spaced hex grid, for every tier transition', () => {
+    const tiers = Object.keys(PLOT_ROWS).map(Number).sort((a, b) => a - b)
+    for (let i = 0; i < tiers.length - 1; i++) {
+      const [from, to] = [tiers[i], tiers[i + 1]]
+      const layout = layoutGarden(from, to - from)
+      const hexWidth = layout.radius * Math.sqrt(3)
+
+      const rows = new Map<number, number[]>()
+      for (const p of [...layout.positions, ...layout.lockedPositions]) {
+        const key = Math.round(p.y * 100)
+        if (!rows.has(key))
+          rows.set(key, [])
+        rows.get(key)!.push(p.x)
+      }
+
+      for (const xs of rows.values()) {
+        xs.sort((a, b) => a - b)
+        for (let k = 1; k < xs.length; k++) {
+          expect(xs[k] - xs[k - 1]).toBeCloseTo(hexWidth, 5)
+        }
+      }
+    }
+  })
+})
+
 describe('hexPoints', () => {
   it('returns 6 vertices, the first pointing straight up from center', () => {
     const points = hexPoints(10, 0, 0).split(' ')

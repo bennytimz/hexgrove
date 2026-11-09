@@ -23,7 +23,7 @@ const props = withDefaults(defineProps<{
   lockedPlots: 0,
 })
 
-const layout = computed(() => layoutGarden(props.plants.length + props.lockedPlots))
+const layout = computed(() => layoutGarden(props.plants.length, props.lockedPlots))
 
 const SKY_TITLES: Record<SkyCondition, string> = { sunny: 'Sunny', stormy: 'Stormy', dusk: 'Dusk' }
 const skyTitle = computed(() => SKY_TITLES[props.skyCondition])
@@ -125,21 +125,22 @@ watch(() => props.pulse, (isPulsing) => {
       :aria-label="`Your garden, ${plants.length} plot${plants.length === 1 ? '' : 's'}`"
     >
       <g
-        v-for="(pos, i) in layout.positions" :key="i" class="plot" :class="{ locked: i >= plants.length }"
-        role="img"
-        :aria-label="i < plants.length ? `Plot ${i + 1}, ${STAGE_NAMES[plants[i].stage].toLowerCase()}` : `Locked plot ${i + 1}`"
+        v-for="(pos, i) in layout.positions" :key="`real-${i}`" class="plot" role="img"
+        :aria-label="`Plot ${i + 1}, ${STAGE_NAMES[plants[i].stage].toLowerCase()}`"
       >
-        <polygon
-          v-if="i < plants.length" class="tile" :points="hexPoints(layout.radius * 0.94, pos.x, pos.y)"
-          :fill="tileColor.fill" :stroke="tileColor.stroke" stroke-width="1.6"
-        />
-        <polygon
-          v-else class="tile locked-tile" :points="hexPoints(layout.radius * 0.94, pos.x, pos.y)"
-          fill="none" stroke="rgba(255,255,255,.18)" stroke-width="1.4" stroke-dasharray="3 3"
-        />
-        <g v-if="i < plants.length" :transform="`translate(${pos.x.toFixed(1)} ${(pos.y + layout.radius * 0.26).toFixed(1)}) scale(${(layout.radius / 40 * 1.3).toFixed(3)})`">
+        <polygon class="tile" :points="hexPoints(layout.radius * 0.94, pos.x, pos.y)" :fill="tileColor.fill" :stroke="tileColor.stroke" stroke-width="1.6" />
+        <g :transform="`translate(${pos.x.toFixed(1)} ${(pos.y + layout.radius * 0.26).toFixed(1)}) scale(${(layout.radius / 40 * 1.3).toFixed(3)})`">
           <g class="plant" v-html="plantSvgMarkup(plants[i].species, plants[i].stage)" />
         </g>
+      </g>
+      <g
+        v-for="(pos, i) in layout.lockedPositions" :key="`locked-${i}`" class="plot locked" role="img"
+        :aria-label="`Locked plot ${i + 1}`"
+      >
+        <polygon
+          class="tile locked-tile" :points="hexPoints(layout.radius * 0.94, pos.x, pos.y)"
+          fill="none" stroke="rgba(255,255,255,.18)" stroke-width="1.4" stroke-dasharray="3 3"
+        />
       </g>
     </svg>
     <p v-if="unlockHint" class="unlock-hint">

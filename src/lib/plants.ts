@@ -41,9 +41,10 @@ function hexPts(r: number, cx = 0, cy = 0): string {
 /** SVG markup for one plant, as a string (same approach as hexPoints). */
 export function plantSvgMarkup(species: PlantSpecies, stage: number): string {
   if (stage === 0) {
-    // A small sprout, not a bare dot: a short stem with two tiny leaves,
-    // still with a soft glow halo behind it.
-    return `<g class="seedglow"><ellipse cx="0" cy="6" rx="7" ry="2.6" fill="#00000045"/><circle cx="0" cy="4" r="6" fill="#F6B221" opacity=".16"/><path d="M0 6 L0 1" stroke="#4FB88A" stroke-width="2" stroke-linecap="round"/><ellipse cx="-2" cy="2" rx="2.2" ry="1" transform="rotate(-35 -2 2)" fill="#4FB88A"/><ellipse cx="2" cy="2.4" rx="2.2" ry="1" transform="rotate(35 2 2.4)" fill="#4FB88A"/></g>`
+    // A small sprout, not a bare dot or an arrow: a short stem with two
+    // round leaf blobs (wide, not thin slivers, so they don't alias into
+    // looking like arrow fletching at small sizes), plus a soft glow halo.
+    return `<g class="seedglow"><ellipse cx="0" cy="6" rx="7" ry="2.6" fill="#00000045"/><circle cx="0" cy="4" r="6" fill="#F6B221" opacity=".16"/><path d="M0 6 L0 2" stroke="#4FB88A" stroke-width="2" stroke-linecap="round"/><ellipse cx="-2.3" cy="2" rx="3" ry="2" transform="rotate(-40 -2.3 2)" fill="#4FB88A"/><ellipse cx="2.3" cy="2.3" rx="3" ry="2" transform="rotate(40 2.3 2.3)" fill="#4FB88A"/></g>`
   }
 
   const H = [0, 9, 19, 27, 34][stage]

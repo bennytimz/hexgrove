@@ -13,14 +13,28 @@ export interface PlotPosition {
 }
 
 export interface GardenLayout {
+  /** Owned plots — never resized or repositioned by a trailing locked tier. */
   positions: PlotPosition[]
+  /** Faint next-tier outlines, on the exact same grid (radius, row spacing, column spacing) as positions. */
+  lockedPositions: PlotPosition[]
   radius: number
   width: number
   height: number
 }
 
-/** Ported from the mockup's gardenHTML: rows of pointy-top hexagons, centered. */
-export function layoutGarden(plots: number, width = 360, height = 290, pad = 14): GardenLayout {
+/**
+ * Ported from the mockup's gardenHTML: rows of pointy-top hexagons, centered.
+ *
+ * `lockedCount` plots are appended on the same grid as the real ones: the
+ * real tier's own row shape and hex size are computed first and never
+ * change, then locked hexes extend existing rows symmetrically outward
+ * (same row y, same column spacing) and add further rows below using the
+ * next tier's row counts. The tiers' row tables aren't nested subsets of
+ * each other, so a handful of rows across some tier transitions land one
+ * hex off-center rather than perfectly centered — real plots staying fixed
+ * takes priority over that.
+ */
+export function layoutGarden(plots: number, lockedCount = 0, width = 360, height = 290, pad = 14): GardenLayout {
   const rows = PLOT_ROWS[plots] ?? [1]
   const sqrt3 = Math.sqrt(3)
   const maxRow = Math.max(...rows)
@@ -42,7 +56,27 @@ export function layoutGarden(plots: number, width = 360, height = 290, pad = 14)
     }
   })
 
-  return { positions, radius, width, height }
+  const lockedPositions: PlotPosition[] = []
+  if (lockedCount > 0) {
+    const targetRows = PLOT_ROWS[plots + lockedCount] ?? rows
+    const rowCount = Math.max(targetRows.length, rows.length)
+    for (let rowIndex = 0; rowIndex < rowCount; rowIndex++) {
+      const y = top + rowIndex * 1.5 * radius
+      const realN = rows[rowIndex] ?? 0
+      const targetN = targetRows[rowIndex] ?? 0
+      const extra = targetN - realN
+      for (let k = 0; k < extra; k++) {
+        const step = Math.floor(k / 2) + 1
+        const side = k % 2 === 0 ? 1 : -1
+        const colOffset = realN === 0
+          ? (k - (extra - 1) / 2)
+          : side * ((realN - 1) / 2 + step)
+        lockedPositions.push({ x: width / 2 + colOffset * hexWidth, y })
+      }
+    }
+  }
+
+  return { positions, lockedPositions, radius, width, height }
 }
 
 /** A pointy-top regular hexagon's vertices, as an SVG `<polygon points>` string. */

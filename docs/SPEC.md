@@ -298,14 +298,13 @@ Type uses a rounded system stack (ui-rounded, SF Pro Rounded, Nunito, Avenir Nex
 
 ## Open questions to verify on testnet
 
-Ten things are still unconfirmed, and the first four change screens, so settle them before building the staking flow. Where a question can be answered by testing, test it with two different amounts. One question is already answered, below the table.
+Nine things are still unconfirmed, and the first four change screens, so settle them before building the staking flow. Where a question can be answered by testing, test it with two different amounts. Two questions are already answered, below the table.
 
 | # | Question | Why it matters | Where to look |
 | --- | --- | --- | --- |
 | 1 | Do the provider's staking calls accept an amount, so users can stop earning on part of a stake? | The partial stop-earning design depends on it | Provider API reference on nimiq.dev/mini-apps; `public/app.js` in [NimJar](https://github.com/nimiq/nimjar); `src/services/nimiq.ts` in [Kickback](https://github.com/shrooms08/kickback). Node tooling ([arpl](https://github.com/sisou/arpl)) takes an optional amount, which is a good sign |
 | 2 | Can a stake be reactivated after the wait is over? | Decides whether Ready to withdraw offers only Withdraw | Staking contract in [core-rs-albatross](https://github.com/nimiq/core-rs-albatross); testnet |
 | 3 | How long is the unstaking wait, and can the remaining time be read from chain data? | The countdown on Your stake. [Nimiq's staking page](https://www.nimiq.com/staking/) says 12 hours to 4 days | Staker record on testnet |
-| 4 | What is the real minimum stake, 100 NIM or 1000 NIM? | Amount validation and the first plot tier | NimJar staked 100 NIM on testnet; the staking page says 1000. Test both |
 | 5 | Does withdrawing take exactly two approvals (retire, then remove)? | The Step 1 of 2 and Step 2 of 2 screens | NimJar scripts; testnet |
 | 6 | Does switching validators require stopping earning first? | The switch flow copy | arpl describes deactivating as the step for moving to another validator; confirm on testnet |
 | 7 | How do you tell pool payouts from ordinary incoming transfers? | A misclassified transfer would inflate plant growth and break the honesty rule | `chain.ts` in [NimBooks](https://github.com/subimpact/nimbooks); the payout files in Kickback |
@@ -317,16 +316,18 @@ Ten things are still unconfirmed, and the first four change screens, so settle t
 
 | # | Question | Answer |
 | --- | --- | --- |
+| 4 | What is the real minimum stake, 100 NIM or 1000 NIM? | 100 NIM. Confirmed on testnet, 2026-11-09: `getPolicyConstants` reports `minimumStake: 10000000` Luna (100 NIM). A 50 NIM Create Staker transaction never confirmed and expired after about 2 hours; a 100 NIM Create Staker transaction confirmed within minutes |
 | 11 | Does Nimiq Pay accept plain http custom URLs, or only HTTPS? | Yes. Confirmed on an iPhone, Nimiq Pay testnet, 2026-11-09: a plain `http://` LAN Custom URL (`npm run dev -- --host`) loaded Hexgrove inside Nimiq Pay. `listAccounts`, `getBalance` and `getHostNetwork` also confirmed working against testnet in the same session |
 
 **Testnet observations, 2026-11-09**
 
-Recorded as seen, not as verified. None of these answer a numbered question above on their own.
+Recorded as seen, not as verified. None of these answer a numbered question above on their own, except where noted.
 
-- Open question 4: `getPolicyConstants` on testnet reports `minimumStake: 10000000` Luna (100 NIM), read from chain. A real 100 NIM stake has not been confirmed yet.
+- Open question 4 (now answered above): `getPolicyConstants` on testnet reports `minimumStake: 10000000` Luna (100 NIM), read from chain.
 - Nimiq Pay refuses a new transaction while one is already pending: `NimiqProviderError` type `INTERNAL_ERROR`, code -32603, message "A transaction is still pending. Wait for it to resolve before sending another." Added as a sixth outcome in Errors and copy, above.
-- A 50 NIM Create Staker transaction returned `TRANSACTION_OUTCOME_UNKNOWN` (code -32001) and stayed Pending in Nimiq Pay for 20+ minutes with no staker record appearing on chain. Cause not confirmed. Nimiq Pay also showed "Network consensus lost. Syncing with network." during this time.
-- Open question 9: the testnet validator list (`getActiveValidators`) carries no fee or reliability score. That question needs another data source.
+- A 50 NIM Create Staker transaction returned `TRANSACTION_OUTCOME_UNKNOWN` (code -32001) and stayed Pending in Nimiq Pay for 20+ minutes with no staker record appearing on chain, then never confirmed and expired after about 2 hours (see question 4's answer above). Nimiq Pay also showed "Network consensus lost. Syncing with network." during this time. Cause of the non-confirmation is not confirmed.
+- The confirmed 100 NIM stake is recorded under `NQ59 RXSD TCJK HGLU X2RB 74EU AP1S UE70 BL1Q`, not under `NQ41 BAFA...UA5P` (the account that held the NIM before staking). The raw `getStakerByAddress` response for the NQ59 address: `balance 10000000`, `delegation NQ35 YFBF ES7X R9PS 36R4 11FG 3HQF YL9Q NL2S`, `inactiveBalance 0`, `inactiveFrom null`, `retiredBalance 0`. The reason for the separate address is unconfirmed.
+- Open question 9: the testnet validator list (`getActiveValidators`) returns `address`, `balance`, `numStakers` and health flags only, no fee or reliability score. That question needs another data source.
 - Chain policy facts read from `getPolicyConstants` on testnet: 1-second blocks, a batch is 60 blocks, an epoch is 43,200 blocks (12 hours), the transaction validity window is 7,200 blocks.
 
 ## Test plan

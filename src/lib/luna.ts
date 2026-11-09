@@ -24,6 +24,17 @@ export function lunaToNim(luna: bigint | number): string {
 }
 
 /**
+ * Formats a Luna amount as a NIM display string with thousands separators,
+ * e.g. 11_000_000_000n -> "110,000". Built on lunaToNim's integer-safe digits,
+ * so the separators are inserted by string splitting, never by float math.
+ */
+export function formatNim(luna: bigint | number): string {
+  const [whole, fraction] = lunaToNim(luna).split('.')
+  const wholeWithSeparators = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return fraction ? `${wholeWithSeparators}.${fraction}` : wholeWithSeparators
+}
+
+/**
  * Parses a NIM amount string (up to 5 decimal places) into an integer Luna amount.
  */
 export function nimToLuna(nim: string): bigint {

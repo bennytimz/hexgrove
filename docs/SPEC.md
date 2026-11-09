@@ -296,7 +296,7 @@ Type uses a rounded system stack (ui-rounded, SF Pro Rounded, Nunito, Avenir Nex
 
 ## Open questions to verify on testnet
 
-Eleven things are unconfirmed, and the first four change screens, so settle them before building the staking flow. Where a question can be answered by testing, test it with two different amounts.
+Ten things are still unconfirmed, and the first four change screens, so settle them before building the staking flow. Where a question can be answered by testing, test it with two different amounts. One question is already answered, below the table.
 
 | # | Question | Why it matters | Where to look |
 | --- | --- | --- | --- |
@@ -310,7 +310,12 @@ Eleven things are unconfirmed, and the first four change screens, so settle them
 | 8 | Do direct-payout pools and the 12-hour payout cadence exist on testnet? | Reward reading may only be testable on mainnet with a small stake | Testnet validator list; NimJar ran steps on mainnet |
 | 9 | What do real reliability scores look like across pools? | The sunny, cloudy and stormy cutoffs | Validators API data |
 | 10 | Exact submission cutoff time, promotion checklist items, and how later submissions count for real usage | Scoring and planning | miniappscompetition.com rules and the community forum |
-| 11 | Does Nimiq Pay accept plain http custom URLs, or only HTTPS? | How the app is served for testing | Test with a LAN URL, then a tunnel or deployed HTTPS link |
+
+**Answered**
+
+| # | Question | Answer |
+| --- | --- | --- |
+| 11 | Does Nimiq Pay accept plain http custom URLs, or only HTTPS? | Yes. Confirmed on an iPhone, Nimiq Pay testnet, 2026-11-09: a plain `http://` LAN Custom URL (`npm run dev -- --host`) loaded Hexgrove inside Nimiq Pay. `listAccounts`, `getBalance` and `getHostNetwork` also confirmed working against testnet in the same session |
 
 ## Test plan
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { lunaToNim, nimToLuna } from './luna'
+import { formatNim, lunaToNim, nimToLuna } from './luna'
 
 describe('lunaToNim and nimToLuna', () => {
   it('converts Luna to NIM', () => {
@@ -50,5 +50,13 @@ describe('lunaToNim and nimToLuna', () => {
 
   it('rejects a negative Luna amount', () => {
     expect(() => lunaToNim(-1n)).toThrow(RangeError)
+  })
+
+  it('formats NIM amounts with thousands separators', () => {
+    expect(formatNim(0n)).toBe('0')
+    expect(formatNim(100_000n)).toBe('1')
+    expect(formatNim(11_000_000_000n)).toBe('110,000')
+    expect(formatNim(12_345_678n)).toBe('123.45678')
+    expect(formatNim(2_100_000_000_000_001n)).toBe('21,000,000,000.00001')
   })
 })

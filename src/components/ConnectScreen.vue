@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { NimiqProvider } from '../nimiq/provider'
 import { onMounted, ref } from 'vue'
-import { lunaToNim } from '../lib/luna'
+import { formatNim } from '../lib/luna'
 import { getHostNetwork, getProvider, NimiqProviderError, resetProvider } from '../nimiq/provider'
 
 type Phase =
@@ -231,7 +231,7 @@ onMounted(connect)
             Try again
           </button>
         </template>
-        <b v-else-if="balanceLuna !== null">{{ lunaToNim(balanceLuna) }} NIM</b>
+        <b v-else-if="balanceLuna !== null">{{ formatNim(balanceLuna) }} NIM</b>
       </div>
     </section>
   </main>

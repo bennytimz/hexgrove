@@ -10,6 +10,8 @@ See [`docs/SPEC.md`](docs/SPEC.md) for the full product spec and [`docs/hexgrove
 
 Build order step 1 only: a single screen that connects to Nimiq Pay, picks an account, and shows its balance and network. No staking, no garden yet.
 
+Confirmed working on a real phone (iPhone, Nimiq Pay, testnet, 2026-11-09): the plain-http LAN Custom URL, `listAccounts`, `getBalance`, and `getHostNetwork`.
+
 ## Setup
 
 ```bash
@@ -35,14 +37,14 @@ Two ways, both work with this dev server (`server.host` and `server.allowedHosts
 1. **Same Wi-Fi (LAN URL).** In Nimiq Pay, go to **Mini Apps → Custom URL**, and enter the Network URL from the terminal, e.g. `http://192.168.1.42:5173`.
 2. **HTTPS tunnel.** If your phone isn't on the same network, run a tunnel (e.g. `ngrok http 5173`, or Cloudflare's `cloudflared tunnel --url http://localhost:5173`) and enter the `https://` URL it gives you into **Mini Apps → Custom URL** instead. `allowedHosts: true` means Vite will accept requests through the tunnel's hostname.
 
-**Open question:** it is unconfirmed whether Nimiq Pay's Custom URL accepts a plain `http://` LAN address, or only `https://`. If the LAN URL doesn't load, use the HTTPS tunnel option. Once confirmed, this will be recorded in `docs/SPEC.md` (open question 11).
+**Confirmed:** a plain `http://` LAN Custom URL works inside Nimiq Pay (tested on an iPhone, testnet). The HTTPS tunnel option above is still there for when your phone isn't on the same network.
 
 ### What you should see
 
 - Briefly, "Connecting to Nimiq Pay…".
 - If Nimiq Pay is still syncing: "Nimiq Pay is still syncing" with a **Try again** button.
 - If more than one account exists in the wallet: a list to choose one; with a single account, it's selected automatically.
-- Once connected: the **Hexgrove** brand mark, a **Testnet** badge (if Nimiq Pay is on testnet), your account address, and your balance in NIM.
+- Once connected: the **Hexgrove** brand mark, a **Testnet** badge (if Nimiq Pay is on testnet), your account address, and your balance in NIM (with thousands separators, e.g. "110,000 NIM").
 - If anything fails along the way (declined account access, no provider, a balance lookup error), a plain-language message and a **Try again** button — never a blank screen.
 
 Opening the same URL in a regular desktop browser (outside Nimiq Pay) should show "Open Hexgrove in Nimiq Pay" with an **Open in Nimiq Pay** button and a **Try again** button.
@@ -61,9 +63,9 @@ Via [`@nimiq/mini-app-sdk`](https://www.npmjs.com/package/@nimiq/mini-app-sdk) (
 
 - `init()` — waits for Nimiq Pay to inject the provider.
 - `nimiq.isConsensusEstablished()` — gates the rest of the screen on network consensus.
-- `nimiq.listAccounts()` — basic accounts only.
-- `nimiq.getBalance(address)` — balance in Luna; feature-detected with `typeof nimiq.getBalance === 'function'` since older Nimiq Pay hosts don't expose it.
-- `getHostNetwork()` — drives the testnet badge.
+- `nimiq.listAccounts()` — basic accounts only. **Confirmed on testnet.**
+- `nimiq.getBalance(address)` — balance in Luna; feature-detected with `typeof nimiq.getBalance === 'function'` since older Nimiq Pay hosts don't expose it. **Confirmed on testnet.**
+- `getHostNetwork()` — drives the testnet badge. **Confirmed on testnet.**
 - `NimiqProviderError` — distinguishes a declined account request from other failures.
 
 All Luna/NIM conversions (`src/lib/luna.ts`) use `BigInt`, never floats.

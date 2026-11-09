@@ -327,7 +327,20 @@ Recorded as seen, not as verified. None of these answer a numbered question abov
 - Nimiq Pay refuses a new transaction while one is already pending: `NimiqProviderError` type `INTERNAL_ERROR`, code -32603, message "A transaction is still pending. Wait for it to resolve before sending another." Added as a sixth outcome in Errors and copy, above.
 - A 50 NIM Create Staker transaction returned `TRANSACTION_OUTCOME_UNKNOWN` (code -32001) and stayed Pending in Nimiq Pay for 20+ minutes with no staker record appearing on chain, then never confirmed and expired after about 2 hours (see question 4's answer above). Nimiq Pay also showed "Network consensus lost. Syncing with network." during this time. Cause of the non-confirmation is not confirmed.
 - The confirmed 100 NIM stake is recorded under `NQ59 RXSD TCJK HGLU X2RB 74EU AP1S UE70 BL1Q`, not under `NQ41 BAFA...UA5P` (the account that held the NIM before staking). The raw `getStakerByAddress` response for the NQ59 address: `balance 10000000`, `delegation NQ35 YFBF ES7X R9PS 36R4 11FG 3HQF YL9Q NL2S`, `inactiveBalance 0`, `inactiveFrom null`, `retiredBalance 0`. The reason for the separate address is unconfirmed.
-- Checked with `getAccountByAddress` (observed on one testnet account only, 2026-11-09): `NQ59 RXSD TCJK HGLU X2RB 74EU AP1S UE70 BL1Q` (the staker address) is type `basic`, balance 0. `NQ41 BAFA...UA5P` is type `htlc`, balance `10980000000` Luna (109,800 NIM), `totalAmount 11000000000`, `sender NQ59 RXSD...BL1Q`, and a different recipient address. So Nimiq Pay holds spendable NIM in an HTLC account, and the stake is recorded under the basic account. This reverses the earlier guess in this document: **NQ41 is the HTLC, not NQ59.** NimJar's `src/chain.js` sweeping-into-an-HTLC behavior is still only documented by NimJar's own testing notes, not an official Nimiq Pay or Mini App SDK guarantee, but this observation is consistent with it (HTLC holds spendable NIM, basic account holds the stake). Design consequence, already built: the home screen sums balances across every `listAccounts` address for "Spendable", and reads the staker record from each address rather than relying on one selected address. The "We can't see your stake yet" fallback stays, since this pattern has been seen on one account only.
+- Raw `getAccountByAddress` output, via the probe's "Check account types" button, observed on one testnet account only, 2026-11-09, `listAccounts()` having returned both addresses:
+  ```json
+  [
+    { "address": "NQ59 RXSD TCJK HGLU X2RB 74EU AP1S UE70 BL1Q",
+      "result": { "balance": 0, "type": "basic" } },
+    { "address": "NQ41 BAFA YMSC JL3U MV2V XBSA 5PRA GLPM UA5P",
+      "result": { "balance": 10980000000, "type": "htlc",
+        "sender": "NQ59 RXSD TCJK HGLU X2RB 74EU AP1S UE70 BL1Q",
+        "recipient": "NQ54 FTGY F6VJ EJPU NSMN RA5Q 0K21 8EQT Q05P",
+        "hashRoot": { "algorithm": "blake2b", "hash": "0000000000000000000000000000000000000000000000000000000000000000" },
+        "hashCount": 1, "timeout": 1795354209264, "totalAmount": 11000000000 } }
+  ]
+  ```
+  NQ59, the staker address, is a basic account with balance 0. NQ41 is an HTLC holding the spendable NIM (109,800 NIM), with NQ59 as its sender. So Nimiq Pay holds spendable NIM in an HTLC account, and the stake is recorded under the basic account. This reverses the earlier guess in this document: **NQ41 is the HTLC, not NQ59.** NimJar's `src/chain.js` sweeping-into-an-HTLC behavior is still only documented by NimJar's own testing notes, not an official Nimiq Pay or Mini App SDK guarantee, but this observation is consistent with it. Design consequence, already built: the home screen sums balances across every `listAccounts` address for "Spendable", and reads the staker record from each address rather than relying on one selected address. The "We can't see your stake yet" fallback stays, since this pattern has been seen on one account only.
 - Open question 9: the testnet validator list (`getActiveValidators`) returns `address`, `balance`, `numStakers` and health flags only, no fee or reliability score. That question needs another data source.
 - Chain policy facts read from `getPolicyConstants` on testnet: 1-second blocks, a batch is 60 blocks, an epoch is 43,200 blocks (12 hours), the transaction validity window is 7,200 blocks.
 

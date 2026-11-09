@@ -138,11 +138,16 @@ async function loadBalance() {
   }
 }
 
+const isMock = window.__HEXGROVE_MOCK__ === true
+
 onMounted(connect)
 </script>
 
 <template>
   <main class="connect">
+    <div v-if="isMock" class="mock-banner" role="status">
+      Mock data — not real Nimiq Pay behavior
+    </div>
     <div class="brand">
       <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M12 2l8.5 5v10L12 22l-8.5-5V7z" fill="#F6B221" />
@@ -245,6 +250,19 @@ onMounted(connect)
   align-items: center;
   padding: 16px;
   gap: 16px;
+}
+
+.mock-banner {
+  width: 100%;
+  max-width: 430px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #ff6b9d;
+  background: #2a1620;
+  color: #ff9dc0;
+  font-weight: 700;
+  font-size: 13px;
+  text-align: center;
 }
 
 .brand {

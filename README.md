@@ -49,11 +49,32 @@ Two ways, both work with this dev server (`server.host` and `server.allowedHosts
 
 Opening the same URL in a regular desktop browser (outside Nimiq Pay) should show "Open Hexgrove in Nimiq Pay" with an **Open in Nimiq Pay** button and a **Try again** button.
 
+## Mock provider (dev only)
+
+To work on screens on a PC without a phone, add `?mock=1` to the dev server URL in a regular browser, e.g. `http://localhost:5173/?mock=1`. This stands in two fake accounts (110,000 NIM and 0 NIM, network testnet) for the real Nimiq Pay provider.
+
+The mock only exists behind `import.meta.env.DEV` and is loaded with a dynamic `import()`, so it's dead-code-eliminated from `npm run build`'s output entirely — verified by grepping `dist/` for the mock's fake data and "not mocked yet" error text after a production build; neither appears.
+
+A **Mock data** banner is always visible at the top of the screen while the mock is active, so it can never be mistaken for real behavior.
+
+Add `&fail=` to simulate a specific failure:
+
+| `fail` value | Simulates |
+| --- | --- |
+| `notinpay` | Running outside Nimiq Pay: the provider never injects, so `init()` eventually times out |
+| `timeout` | A slow provider: it injects ~11 seconds in (just past the default 10s timeout), so the first connect attempt fails but a later retry succeeds |
+| `syncing` | `isConsensusEstablished()` returns false once, then true, so you can see the "still syncing" screen and the retry succeeding |
+| `declined` | `listAccounts()` always rejects with a `PERMISSION_DENIED` `NimiqProviderError` |
+
+Example: `http://localhost:5173/?mock=1&fail=declined`
+
+Staking calls (`sendNewStakerTransaction`, etc.) are deliberately **not** mocked — they throw a clear "not mocked yet" error. They'll be mocked only after their real behavior is confirmed on testnet.
+
 ## Test
 
 ```bash
 npm run typecheck   # vue-tsc
-npm test            # vitest, currently covers src/lib/luna.ts
+npm test            # vitest: src/lib/luna.ts and the mock provider's failure modes
 npm run build       # production build
 ```
 

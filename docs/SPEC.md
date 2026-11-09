@@ -144,6 +144,16 @@ When part of a stake stops earning, plots beyond what the active stake supports 
 
 Conditions describe recent reliability. They never promise rewards, and the UI says so.
 
+**Deviation, 2026-11-09: sky from real validator data, not a reliability score.** The table above needs a reliability score from the Validators API, and no such score exists yet (open question 9: `getActiveValidators` on testnet returns `address`, `balance`, `numStakers` and health flags only). Built instead: the user's delegation address is read from their own staker record and looked up in `getActiveValidators`.
+
+| State | Condition | Label |
+| --- | --- | --- |
+| Sunny | Found in the active list; `retired` false, `inactivityFlag` null, `jailedFrom` null | "Your validator is active" |
+| Stormy | `jailedFrom` set, or `retired` true, or `inactivityFlag` set | Says which, in plain words, e.g. "Your validator is jailed right now" |
+| Dusk | Lookup failed, or the validator isn't found in the list | "Can't check your validator right now" |
+
+No Cloudy state for now, since there is no score to place in the middle. Never call this a "reliability score" anywhere in the app; it is a plain active/not-active signal. See `src/lib/sky.ts`.
+
 **Recommended tag (a hint only).** A pool gets it when it is sunny, charges 6% or less, pays rewards directly to the wallet, and holds under 10% of the network. Publish these criteria in the app. Several pools can carry the tag.
 
 **Watering and streaks.** One tap per day. The day boundary is the user's local midnight, and the app stores the user's timezone. A missed day dims the plants and resets the streak to zero. Watering is visual only and must never change or imply a change to rewards.

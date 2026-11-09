@@ -24,6 +24,9 @@ export const MOCK_BALANCES_LUNA: Readonly<Record<string, number>> = {
   [MOCK_ADDRESSES[2]]: 0,
 }
 
+/** The validator MOCK_ADDRESSES[0] delegates to — active, so sky reads Sunny by default. */
+export const MOCK_VALIDATOR_ADDRESS = 'NQ35 MOCK VALD 0000 0000 0000 0000 0000 0001'
+
 export const MOCK_BLOCK_NUMBER = 1_000_000
 /** Inactive balance for MOCK_ADDRESSES[2]: 50 NIM, released about an hour from MOCK_BLOCK_NUMBER (1 block ~ 1 second). */
 export const MOCK_WAITING_INACTIVE_LUNA = 5_000_000
@@ -100,7 +103,7 @@ export function createMockProvider(failMode: MockFailMode) {
         if (address === MOCK_ADDRESSES[0]) {
           return {
             balance: MOCK_BALANCES_LUNA[MOCK_ADDRESSES[0]],
-            delegation: null,
+            delegation: MOCK_VALIDATOR_ADDRESS,
             inactiveBalance: 0,
             inactiveFrom: null,
             retiredBalance: 0,
@@ -117,6 +120,11 @@ export function createMockProvider(failMode: MockFailMode) {
         }
         // Mirrors the real node's reporting of "never staked" as an RPC error.
         throw new Error(`getStakerByAddress: no staker with address ${address}`)
+      }
+      if (args.method === 'getActiveValidators') {
+        return [
+          { address: MOCK_VALIDATOR_ADDRESS, retired: false, inactivityFlag: null, jailedFrom: null },
+        ] as T
       }
       return notImplemented('request')()
     },

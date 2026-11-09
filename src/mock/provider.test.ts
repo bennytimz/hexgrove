@@ -5,6 +5,7 @@ import {
   MOCK_ADDRESSES,
   MOCK_BLOCK_NUMBER,
   MOCK_TIMEOUT_DELAY_MS,
+  MOCK_VALIDATOR_ADDRESS,
   MOCK_WAITING_INACTIVE_FROM,
   MOCK_WAITING_INACTIVE_LUNA,
 } from './provider'
@@ -117,6 +118,19 @@ describe('installMockProvider', () => {
     installMockProvider(null)
     const nimiq = win.nimiq as any
 
-    await expect(nimiq.request({ method: 'getActiveValidators' })).rejects.toThrow(/not mocked yet/i)
+    await expect(nimiq.request({ method: 'getPolicyConstants' })).rejects.toThrow(/not mocked yet/i)
+  })
+
+  it('delegates the staked mock address to an active validator, for sky testing', async () => {
+    installMockProvider(null)
+    const nimiq = win.nimiq as any
+
+    const staker = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[0]] })
+    expect(staker.delegation).toBe(MOCK_VALIDATOR_ADDRESS)
+
+    const validators = await nimiq.request({ method: 'getActiveValidators' })
+    expect(validators).toEqual([
+      { address: MOCK_VALIDATOR_ADDRESS, retired: false, inactivityFlag: null, jailedFrom: null },
+    ])
   })
 })

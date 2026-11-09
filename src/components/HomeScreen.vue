@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { NimiqProvider } from '../nimiq/provider'
 import type { PlantData } from '../lib/plants'
+import type { SkyCondition } from '../lib/sky'
 import type { StoredWatering } from '../lib/watering'
 import { computed, onMounted, ref } from 'vue'
 import HexGarden from './HexGarden.vue'
 import { formatNim } from '../lib/luna'
 import { PREVIEW_PLANTS } from '../lib/plants'
 import { plotsForStake } from '../lib/plots'
+import { compactAddress, computeSkyState } from '../lib/sky'
 import { computeWateringState, waterToday } from '../lib/watering'
 import { formatWaitRemaining } from '../lib/waiting'
 import { DEFAULT_TESTNET_RPC_URL, getHostNetwork, getProvider, NimiqProviderError, resetProvider } from '../nimiq/provider'
@@ -42,6 +44,10 @@ const waitingReadyText = ref('')
 const releasedLuna = ref<bigint>(0n)
 const stakeHolders = ref<string[]>([])
 const stakeComingSoon = ref(false)
+
+const initialSky = computeSkyState(null)
+const skyCondition = ref<SkyCondition>(initialSky.condition)
+const skyLabel = ref(initialSky.label)
 
 const watered = ref(false)
 const streak = ref(0)
@@ -141,6 +147,39 @@ async function retryAccounts() {
 }
 
 /**
+ * Sky from the user's own delegation validator via getActiveValidators —
+ * a deviation from the spec's score-based table, recorded in
+ * docs/SPEC.md. Dusk covers both "no delegation yet" and "lookup failed
+ * or validator not found", never Stormy just because data is missing.
+ */
+async function loadSky(nimiq: NimiqProvider, delegation: string | null) {
+  if (!delegation) {
+    const state = computeSkyState(null)
+    skyCondition.value = state.condition
+    skyLabel.value = state.label
+    return
+  }
+
+  try {
+    const validators = await nimiq.request<unknown>({ method: 'getActiveValidators' })
+    const match = Array.isArray(validators)
+      ? validators.find((v): v is { address: string, retired?: boolean, inactivityFlag?: unknown, jailedFrom?: unknown } =>
+          !!v && typeof v === 'object' && typeof (v as { address?: unknown }).address === 'string'
+          && compactAddress((v as { address: string }).address) === compactAddress(delegation))
+      : undefined
+    const state = computeSkyState(match ?? null)
+    skyCondition.value = state.condition
+    skyLabel.value = state.label
+  }
+  catch (error) {
+    console.error('Could not load validator state:', error)
+    const state = computeSkyState(null)
+    skyCondition.value = state.condition
+    skyLabel.value = state.label
+  }
+}
+
+/**
  * No account picker: looks up balance and staker state for every address
  * listAccounts returned, and combines them. This only checks what
  * listAccounts gave us — a stake can be registered under a different
@@ -176,6 +215,7 @@ async function loadCombined() {
       inactive: bigint
       retired: bigint
       inactiveFrom: number | null
+      delegation: string | null
       error: boolean
     }
 
@@ -188,6 +228,7 @@ async function loadCombined() {
             inactiveBalance?: number
             inactiveFrom?: number | null
             retiredBalance?: number
+            delegation?: string | null
           } | null>({ method: 'getStakerByAddress', params: [addr] })
 
           return {
@@ -196,6 +237,7 @@ async function loadCombined() {
             inactive: BigInt(staker?.inactiveBalance ?? 0),
             retired: BigInt(staker?.retiredBalance ?? 0),
             inactiveFrom: staker?.inactiveFrom ?? null,
+            delegation: staker?.delegation ?? null,
             error: false,
           }
         }
@@ -205,7 +247,7 @@ async function loadCombined() {
           if (!noStaker) {
             console.error(`Could not load staker state for ${addr}:`, error)
           }
-          return { address: addr, active: 0n, inactive: 0n, retired: 0n, inactiveFrom: null, error: !noStaker }
+          return { address: addr, active: 0n, inactive: 0n, retired: 0n, inactiveFrom: null, delegation: null, error: !noStaker }
         }
       })),
     ])
@@ -234,6 +276,14 @@ async function loadCombined() {
     waitingLuna.value = totalWaiting
     releasedLuna.value = totalReleased
     stakeHolders.value = holders
+
+    // Sky follows the delegation of whichever holder is actively earning,
+    // falling back to any holder with a delegation set.
+    const delegation = stakerResults.find(r => r.active > 0n && r.delegation)?.delegation
+      ?? stakerResults.find(r => r.delegation)?.delegation
+      ?? null
+    await loadSky(nimiq, delegation)
+
     waitingReadyText.value = totalWaiting > 0n && latestInactiveFrom !== null
       ? formatWaitRemaining(latestInactiveFrom - blockNumber)
       : ''
@@ -429,7 +479,7 @@ onMounted(connect)
           <div class="preview-banner" role="status">
             Preview — sample garden, not yours
           </div>
-          <HexGarden :plants="PREVIEW_PLANTS" :watered="true" />
+          <HexGarden :plants="PREVIEW_PLANTS" :watered="true" sky-condition="sunny" sky-label="Sample conditions" />
         </template>
 
         <template v-else-if="combinedState === 'staked'">
@@ -438,7 +488,10 @@ onMounted(connect)
             <span :class="['chip', watered ? 'ok' : '']">{{ watered ? 'Watered today' : 'Needs water' }}</span>
           </div>
 
-          <HexGarden :plants="realPlants" :watered="watered" :pulse="pulse" />
+          <HexGarden
+            :plants="realPlants" :watered="watered" :pulse="pulse"
+            :sky-condition="skyCondition" :sky-label="skyLabel"
+          />
 
           <div class="stat">
             <small>Earning</small>

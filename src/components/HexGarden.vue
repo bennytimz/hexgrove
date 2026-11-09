@@ -1,17 +1,34 @@
 <script setup lang="ts">
 import type { PlantData } from '../lib/plants'
+import type { SkyCondition } from '../lib/sky'
 import { computed } from 'vue'
 import { hexPoints, layoutGarden } from '../lib/hexLayout'
 import { plantSvgMarkup, STAGE_NAMES } from '../lib/plants'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   plants: PlantData[]
   watered: boolean
   /** Briefly true right after watering, to trigger the grow bump. */
   pulse?: boolean
-}>()
+  skyCondition?: SkyCondition
+  skyLabel?: string
+}>(), {
+  pulse: false,
+  skyCondition: 'dusk',
+  skyLabel: 'Can\'t check your validator right now',
+})
 
 const layout = computed(() => layoutGarden(props.plants.length))
+
+const SKY_TITLES: Record<SkyCondition, string> = { sunny: 'Sunny', stormy: 'Stormy', dusk: 'Dusk' }
+const skyTitle = computed(() => SKY_TITLES[props.skyCondition])
+
+const TILE_COLORS: Record<SkyCondition, { fill: string, stroke: string }> = {
+  sunny: { fill: '#1D3B38', stroke: '#F6B22199' },
+  stormy: { fill: '#352F33', stroke: '#A38585AA' },
+  dusk: { fill: '#1B2347', stroke: '#6F7DB877' },
+}
+const tileColor = computed(() => TILE_COLORS[props.skyCondition])
 
 const STARS = [
   { x: 40, y: 30, r: 1.9 },
@@ -23,21 +40,57 @@ const STARS = [
   { x: 360, y: 84, r: 1.9 },
   { x: 60, y: 104, r: 1.4 },
 ]
+
+const STORM_CLOUDS = [
+  { x: 110, y: 48, s: 1.5, color: '#3B3858', cls: '' },
+  { x: 260, y: 40, s: 1.7, color: '#4A4570', cls: 'b' },
+  { x: 200, y: 62, s: 1.3, color: '#322F4F', cls: '' },
+]
+
+const RAIN_LINES = Array.from({ length: 16 }, (_, k) => ({
+  x: 20 + k * 22 + (k % 3) * 5,
+  delay: Number((k * 0.17).toFixed(2)),
+}))
 </script>
 
 <template>
   <section class="garden" aria-label="Your garden">
-    <div class="sky">
+    <div :class="['sky', skyCondition]">
       <svg viewBox="0 0 360 200" preserveAspectRatio="xMidYMin slice" aria-hidden="true">
-        <circle
-          v-for="(s, i) in STARS" :key="i" class="star" :cx="s.x" :cy="s.y" :r="s.r" fill="#DCE4FF"
-          :style="{ animationDelay: `${i * 0.5}s` }"
-        />
-        <path d="M296 28a22 22 0 1 0 14 38 18 18 0 0 1-14-38z" fill="#F4E9BF" opacity=".92" />
+        <template v-if="skyCondition === 'sunny'">
+          <g class="rays">
+            <line
+              v-for="k in 12" :key="k" x1="292" y1="14" x2="292" y2="24" stroke="#FFE08A"
+              stroke-width="2.4" stroke-linecap="round" :transform="`rotate(${(k - 1) * 30} 292 52)`" opacity=".8"
+            />
+          </g>
+          <circle cx="292" cy="52" r="34" fill="#FFD36B" opacity=".22" />
+          <circle cx="292" cy="52" r="19" fill="#FFD36B" />
+        </template>
+        <template v-else-if="skyCondition === 'stormy'">
+          <g v-for="(c, i) in STORM_CLOUDS" :key="i" :class="['cloud', c.cls]">
+            <g :transform="`translate(${c.x} ${c.y}) scale(${c.s})`" :fill="c.color">
+              <ellipse cx="0" cy="0" rx="30" ry="11" />
+              <circle cx="-10" cy="-9" r="11" />
+              <circle cx="9" cy="-13" r="14" />
+            </g>
+          </g>
+          <line
+            v-for="(r, i) in RAIN_LINES" :key="i" class="rainline" :x1="r.x" y1="52" :x2="r.x - 4" y2="64"
+            stroke="#9FB5E8" stroke-width="1.6" stroke-linecap="round" :style="{ animationDelay: `${r.delay}s` }"
+          />
+        </template>
+        <template v-else>
+          <circle
+            v-for="(s, i) in STARS" :key="i" class="star" :cx="s.x" :cy="s.y" :r="s.r" fill="#DCE4FF"
+            :style="{ animationDelay: `${i * 0.5}s` }"
+          />
+          <path d="M296 28a22 22 0 1 0 14 38 18 18 0 0 1-14-38z" fill="#F4E9BF" opacity=".92" />
+        </template>
       </svg>
     </div>
     <div class="skylabel">
-      <b>Dusk</b><span>Can't check validator conditions right now</span>
+      <b>{{ skyTitle }}</b><span>{{ skyLabel }}</span>
     </div>
     <svg
       :class="['plots', pulse ? 'pulse' : '', watered ? 'watered' : 'thirsty']"
@@ -48,7 +101,7 @@ const STARS = [
         v-for="(pos, i) in layout.positions" :key="i" class="plot" role="img"
         :aria-label="`Plot ${i + 1}, ${STAGE_NAMES[plants[i].stage].toLowerCase()}`"
       >
-        <polygon class="tile" :points="hexPoints(layout.radius * 0.94, pos.x, pos.y)" fill="#1B2347" stroke="#6F7DB877" stroke-width="1.6" />
+        <polygon class="tile" :points="hexPoints(layout.radius * 0.94, pos.x, pos.y)" :fill="tileColor.fill" :stroke="tileColor.stroke" stroke-width="1.6" />
         <g :transform="`translate(${pos.x.toFixed(1)} ${(pos.y + layout.radius * 0.26).toFixed(1)}) scale(${(layout.radius / 40 * 1.3).toFixed(3)})`">
           <g class="plant" v-html="plantSvgMarkup(plants[i].species, plants[i].stage)" />
         </g>
@@ -59,8 +112,9 @@ const STARS = [
 
 <style scoped>
 /*
- * Sky is always Dusk: no validator reliability data exists yet either
- * (open question 9) — Dusk is the spec's honest "no data" state, never
+ * Sky reflects the user's own delegation validator (see docs/SPEC.md,
+ * "Deviation: sky from real validator data"), not a reliability score.
+ * Dusk covers both "lookup failed" and "validator not found" — never
  * shown as Stormy just because data is missing.
  */
 .garden {
@@ -76,8 +130,19 @@ const STARS = [
   right: 0;
   top: 0;
   height: 160px;
-  background: linear-gradient(180deg, #0a1033 0%, #18205a 65%, #262f70 100%);
   mask-image: linear-gradient(#000 12%, transparent 100%);
+}
+
+.sky.sunny {
+  background: linear-gradient(180deg, #172e68 0%, #2c509a 60%, #6a7fa8 100%);
+}
+
+.sky.stormy {
+  background: linear-gradient(180deg, #10132a 0%, #262345 65%, #3a3159 100%);
+}
+
+.sky.dusk {
+  background: linear-gradient(180deg, #0a1033 0%, #18205a 65%, #262f70 100%);
 }
 
 .sky svg {
@@ -94,6 +159,53 @@ const STARS = [
 @keyframes twinkle {
   50% {
     opacity: .25;
+  }
+}
+
+.rays {
+  transform-origin: 292px 52px;
+  animation: spin 70s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cloud {
+  animation: drift 9s ease-in-out infinite alternate;
+}
+
+.cloud.b {
+  animation-duration: 12s;
+  animation-delay: -4s;
+}
+
+@keyframes drift {
+  from {
+    transform: translateX(-8px);
+  }
+  to {
+    transform: translateX(8px);
+  }
+}
+
+.rainline {
+  animation: rain 1.3s linear infinite;
+}
+
+@keyframes rain {
+  from {
+    transform: translateY(-30px);
+    opacity: 0;
+  }
+  25% {
+    opacity: .7;
+  }
+  to {
+    transform: translateY(150px);
+    opacity: 0;
   }
 }
 

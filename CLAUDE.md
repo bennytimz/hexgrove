@@ -38,4 +38,4 @@ Hexgrove is a Nimiq Pay mini app for the Earn category of the Nimiq Mini Apps Co
 - Work in small steps that follow the "Build order" in the spec. Finish one step, tell me exactly how to test it, then stop and wait.
 - You cannot run the app inside Nimiq Pay. Never say a Nimiq Pay behavior is verified until I confirm it on my phone.
 - Commit often with clear messages. Keep the README current: setup, the Nimiq calls used, the roadmap (including the leaderboard), and credits.
-- Run the dev server so a phone can reach it: `npm run dev -- --host`. (Update this section with the real commands after scaffolding.)
+- Run the dev server so a phone can reach it: `npm run dev -- --host`. `npm run typecheck`, `npm test`, and `npm run build` are also available.

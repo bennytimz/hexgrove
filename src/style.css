@@ -1,0 +1,60 @@
+:root {
+  --night: #0b1230;
+  --deep: #121b40;
+  --line: #25315e;
+  --edge: #6573aa;
+  --gold: #f6b221;
+  --gold-soft: #ffd36b;
+  --mist: #aeb9dd;
+  --text: #f3f5ff;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  background: var(--night);
+  color: var(--text);
+  font-family:
+    ui-rounded,
+    'SF Pro Rounded',
+    'Nunito',
+    'Avenir Next',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--gold-soft);
+  outline-offset: 2px;
+}
+
+#app {
+  min-height: 100dvh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

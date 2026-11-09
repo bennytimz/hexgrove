@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { NimiqProvider } from '../nimiq/provider'
+import type { PlantData } from '../lib/plants'
 import type { StoredWatering } from '../lib/watering'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import HexGarden from './HexGarden.vue'
 import { formatNim } from '../lib/luna'
+import { PREVIEW_PLANTS } from '../lib/plants'
 import { plotsForStake } from '../lib/plots'
 import { computeWateringState, waterToday } from '../lib/watering'
 import { formatWaitRemaining } from '../lib/waiting'
@@ -45,6 +47,17 @@ const watered = ref(false)
 const streak = ref(0)
 const pulse = ref(false)
 const muted = ref(localStorage.getItem(MUTED_STORAGE_KEY) === '1')
+
+const previewing = ref(false)
+function togglePreview() {
+  previewing.value = !previewing.value
+}
+
+/** All Seed stage: growth and species await reward reading, a later build step. */
+const realPlants = computed<PlantData[]>(() => {
+  const count = plotsForStake(earningLuna.value)
+  return Array.from({ length: count }, () => ({ species: 'daisy' as const, stage: 0 }))
+})
 
 const deepLink = `nimiqpay://miniapp?url=${encodeURIComponent(location.href)}`
 
@@ -408,13 +421,24 @@ onMounted(connect)
           <span v-else class="hint">Update Nimiq Pay to see this.</span>
         </div>
 
-        <template v-if="combinedState === 'staked'">
+        <button class="btn-ghost" type="button" @click="togglePreview">
+          {{ previewing ? 'Exit preview' : 'Preview a mature garden' }}
+        </button>
+
+        <template v-if="previewing">
+          <div class="preview-banner" role="status">
+            Preview — sample garden, not yours
+          </div>
+          <HexGarden :plants="PREVIEW_PLANTS" :watered="true" />
+        </template>
+
+        <template v-else-if="combinedState === 'staked'">
           <div class="strip">
             <span class="streak">{{ streak > 0 ? `${streak}-day streak` : (watered ? '1-day streak' : 'Start your streak') }}</span>
             <span :class="['chip', watered ? 'ok' : '']">{{ watered ? 'Watered today' : 'Needs water' }}</span>
           </div>
 
-          <HexGarden :plots="plotsForStake(earningLuna)" :watered="watered" :pulse="pulse" />
+          <HexGarden :plants="realPlants" :watered="watered" :pulse="pulse" />
 
           <div class="stat">
             <small>Earning</small>
@@ -483,6 +507,17 @@ onMounted(connect)
   border: 1.5px solid #ff6b9d;
   background: #2a1620;
   color: #ff9dc0;
+  font-weight: 700;
+  font-size: 13px;
+  text-align: center;
+}
+
+.preview-banner {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--gold);
+  background: #2a2007;
+  color: var(--gold-soft);
   font-weight: 700;
   font-size: 13px;
   text-align: center;

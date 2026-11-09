@@ -1,15 +1,17 @@
 <script setup lang="ts">
+import type { PlantData } from '../lib/plants'
 import { computed } from 'vue'
 import { hexPoints, layoutGarden } from '../lib/hexLayout'
+import { plantSvgMarkup, STAGE_NAMES } from '../lib/plants'
 
 const props = defineProps<{
-  plots: number
+  plants: PlantData[]
   watered: boolean
   /** Briefly true right after watering, to trigger the grow bump. */
   pulse?: boolean
 }>()
 
-const layout = computed(() => layoutGarden(props.plots))
+const layout = computed(() => layoutGarden(props.plants.length))
 
 const STARS = [
   { x: 40, y: 30, r: 1.9 },
@@ -40,16 +42,15 @@ const STARS = [
     <svg
       :class="['plots', pulse ? 'pulse' : '', watered ? 'watered' : 'thirsty']"
       viewBox="0 0 360 290" preserveAspectRatio="xMidYMax meet" role="group"
-      :aria-label="`Your garden, ${plots} plot${plots === 1 ? '' : 's'}`"
+      :aria-label="`Your garden, ${plants.length} plot${plants.length === 1 ? '' : 's'}`"
     >
-      <g v-for="(pos, i) in layout.positions" :key="i" class="plot" role="img" :aria-label="`Plot ${i + 1}, seed`">
+      <g
+        v-for="(pos, i) in layout.positions" :key="i" class="plot" role="img"
+        :aria-label="`Plot ${i + 1}, ${STAGE_NAMES[plants[i].stage].toLowerCase()}`"
+      >
         <polygon class="tile" :points="hexPoints(layout.radius * 0.94, pos.x, pos.y)" fill="#1B2347" stroke="#6F7DB877" stroke-width="1.6" />
         <g :transform="`translate(${pos.x.toFixed(1)} ${(pos.y + layout.radius * 0.26).toFixed(1)}) scale(${(layout.radius / 40 * 1.3).toFixed(3)})`">
-          <g class="plant seedglow">
-            <ellipse cx="0" cy="6" rx="8" ry="3" fill="#00000050" />
-            <circle cx="0" cy="3.5" r="3.8" fill="#F6B221" />
-            <circle cx="0" cy="3.5" r="7" fill="#F6B221" opacity=".18" />
-          </g>
+          <g class="plant" v-html="plantSvgMarkup(plants[i].species, plants[i].stage)" />
         </g>
       </g>
     </svg>
@@ -58,8 +59,6 @@ const STARS = [
 
 <style scoped>
 /*
- * Every plot renders as a seed: growth stage and species await reward
- * reading (a later build step). See docs/SPEC.md, Core rules.
  * Sky is always Dusk: no validator reliability data exists yet either
  * (open question 9) — Dusk is the spec's honest "no data" state, never
  * shown as Stormy just because data is missing.
@@ -145,7 +144,8 @@ const STARS = [
   filter: drop-shadow(0 0 5px rgba(246, 178, 33, .5));
 }
 
-.seedglow {
+/* .seedglow is injected via v-html (plantSvgMarkup), so it never gets the scoped-CSS attribute; :deep() is required to reach it. */
+.plant :deep(.seedglow) {
   animation: breathe 3s ease-in-out infinite;
 }
 

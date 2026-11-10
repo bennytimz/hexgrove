@@ -8,13 +8,14 @@ import { getHostNetwork, getProvider, rpcUrlForNetwork } from '../nimiq/provider
 import { readCombinedStaker } from '../nimiq/staker'
 
 /**
- * UNVERIFIED (docs/SPEC.md, "Unstaking timing") — built against documented,
- * not yet chain-tested behavior. Two sequential approvals, never both at
- * once: sendRetireStakeTransaction (release) with the entire inactive
- * balance, then sendRemoveStakeTransaction (withdraw) with the entire
- * retired balance. Both read fresh from the chain on open and before each
- * send, never from a prop — so reopening this sheet always resumes from
- * wherever the staker record actually is, including a stuck step 2.
+ * Confirmed on testnet, 2026-11-10 (docs/SPEC.md, "Unstaking timing") — a
+ * real retire then remove, both approved in Nimiq Pay. Two sequential
+ * approvals, never both at once: sendRetireStakeTransaction (release) with
+ * the entire inactive balance, then sendRemoveStakeTransaction (withdraw)
+ * with the entire retired balance. Both read fresh from the chain on open
+ * and before each send, never from a prop — so reopening this sheet always
+ * resumes from wherever the staker record actually is, including a stuck
+ * step 2.
  */
 
 const props = defineProps<{

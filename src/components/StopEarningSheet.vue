@@ -75,11 +75,12 @@ const amountLuna = computed<bigint | null>(() => {
 })
 
 /**
- * Conservative by design (docs/SPEC.md, "Unstaking timing" — DOCUMENTED,
- * NOT YET VERIFIED ON CHAIN): sendSetActiveStakeTransaction takes an
- * absolute target, and a target between 0 and the minimum stake risks a
- * chain rejection that can block the wallet from sending anything else
- * for up to 2 hours. Only 0 or at least the minimum is ever offered.
+ * Conservative by design (docs/SPEC.md, "Unstaking timing" — confirmed on
+ * testnet 2026-11-10, this specific partial-amount rejection risk is not):
+ * sendSetActiveStakeTransaction takes an absolute target, and a target
+ * between 0 and the minimum stake risks a chain rejection that can block
+ * the wallet from sending anything else for up to 2 hours. Only 0 or at
+ * least the minimum is ever offered.
  */
 const canSubmit = computed(() => {
   if (phase.value !== 'form')
@@ -143,11 +144,11 @@ function validate(): boolean {
   return true
 }
 
-/** "This can take about 12 to 24 hours" — derived live from blocksPerEpoch, never hardcoded (docs/SPEC.md, "Unstaking timing"). No file paths or internal jargon in the text itself: it's shown to the user as-is. */
+/** "This can take about 12 to 24 hours" — derived live from blocksPerEpoch, never hardcoded (docs/SPEC.md, "Unstaking timing", confirmed on testnet 2026-11-10). No file paths or internal jargon in the text itself: it's shown to the user as-is. */
 const waitExplanation = computed(() => {
   if (blocksPerEpoch.value === null)
-    return 'This can take about 12 to 24 hours, depending on timing. This estimate hasn\'t been confirmed yet.'
-  return `This can take about ${aboutDuration(blocksPerEpoch.value)} to ${aboutDuration(blocksPerEpoch.value * 2)}, depending on timing. This estimate hasn't been confirmed yet.`
+    return 'This can take about 12 to 24 hours, depending on timing.'
+  return `This can take about ${aboutDuration(blocksPerEpoch.value)} to ${aboutDuration(blocksPerEpoch.value * 2)}, depending on timing.`
 })
 
 async function pollForConfirmation(nimiq: NimiqProvider) {

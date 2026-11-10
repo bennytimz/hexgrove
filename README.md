@@ -29,8 +29,8 @@ Everything here has been built against confirmed or documented behavior, never g
 | Create a stake | Confirmed on a real phone | Confirmed on a real phone (100 NIM, 2026-11-10, no fee) |
 | Add to an existing stake | Confirmed on a real phone | Built, not yet sent on a real phone |
 | Validator list, minimum stake, Validators API | Confirmed on a real phone | Confirmed on a real phone — reads (fee, reliability, Recommended tag) and the live minimum stake, confirmed when a 100 NIM create-staker transaction succeeded on mainnet |
-| Stop earning, withdraw | Built, **UNVERIFIED**: never exercised against a real unstaking wait | Built, **UNVERIFIED** |
-| The waiting countdown, the release timing | Based on nimiq.dev's documented rules, **UNVERIFIED** on chain | Same |
+| Stop earning, withdraw | Confirmed on a real phone (a real unstake and withdraw, retire then remove, 2026-11-10) | Built, **UNVERIFIED** |
+| The waiting countdown, the release timing | Confirmed on testnet, 2026-11-10: release block = inactiveFrom + blocksPerEpoch matched a real wait | **UNVERIFIED** on mainnet |
 
 "Unverified" never means "untested against expected behavior": it means built exactly to documented or confirmed rules, but not yet exercised on that specific network. See `docs/SPEC.md`'s open questions for the exact gaps and how to close them.
 
@@ -81,7 +81,7 @@ Opening the same URL in a regular desktop browser (outside Nimiq Pay) should sho
 2. Copy your testnet address, and get test NIM from a testnet faucet (testnet NIM has no value, and can't move to mainnet).
 3. Open the app as described above, on testnet.
 4. From the home screen: **Stake** (minimum 100 NIM, read live, confirmed) creates a staker; **Add stake** adds to one. A validator is picked for you, with fee, reliability and network share shown when available, but you can browse and choose any active one.
-5. **Stop earning** and **Withdraw** are built but UNVERIFIED. If you try them, use a small amount, expect the documented wait (about 12 to 24 hours depending on timing), and please report back what actually happened; see `docs/SPEC.md`'s open question 13.
+5. **Stop earning** and **Withdraw** are confirmed on testnet: a real unstake and withdraw, through the app's own flow (retire then remove, both approved in Nimiq Pay), ran on 2026-11-10. Still worth trying yourself; expect the wait to be about 12 to 24 hours depending on timing. See `docs/SPEC.md`'s open question 13, now answered.
 
 ## Testing on mainnet (create a stake confirmed, other transactions unverified)
 
@@ -138,9 +138,9 @@ Via [`@nimiq/mini-app-sdk`](https://www.npmjs.com/package/@nimiq/mini-app-sdk) (
 | `isConsensusEstablished()` | Shows "still syncing" instead of failing | Confirmed |
 | `sendNewStakerTransaction({ delegation, value })` | Creates a staker | Confirmed on testnet and mainnet |
 | `sendStakeTransaction({ value })` | Adds to an existing staker | Confirmed on testnet |
-| `sendSetActiveStakeTransaction({ newActiveBalance })` | Stops earning on an amount, as an absolute target | UNVERIFIED |
-| `sendRetireStakeTransaction({ retireStake })` | Withdraw step 1 | UNVERIFIED |
-| `sendRemoveStakeTransaction({ value })` | Withdraw step 2, the entire retired balance | UNVERIFIED |
+| `sendSetActiveStakeTransaction({ newActiveBalance })` | Stops earning on an amount, as an absolute target | Confirmed on testnet |
+| `sendRetireStakeTransaction({ retireStake })` | Withdraw step 1 | Confirmed on testnet |
+| `sendRemoveStakeTransaction({ value })` | Withdraw step 2, the entire retired balance | Confirmed on testnet |
 | `request({ method: 'getStakerByAddress' })` | Active, waiting and released balances | Confirmed on testnet and mainnet |
 | `request({ method: 'getPolicyConstants' })` | The live minimum stake and epoch length, never hardcoded | Confirmed on testnet and mainnet: 100 NIM minimum, 43,200-block epoch (about 12 hours) on testnet |
 | `request({ method: 'getActiveValidators' })` | Active, jailed and retired validators | Confirmed on testnet and mainnet |
@@ -160,7 +160,7 @@ npm run build       # production build
 
 ## Roadmap
 
-- ~~Create a stake, add to one~~ (built, confirmed on testnet). ~~Stop earning, withdraw~~ (built, UNVERIFIED): next is confirming the documented unstaking timing against a real wait.
+- ~~Create a stake, add to one~~ (built, confirmed on testnet). ~~Stop earning, withdraw~~ (built, confirmed on testnet, 2026-11-10). Mainnet stop earning and withdraw are still unverified.
 - ~~The garden's plot count, and sky from validator health~~ (built, derived from chain data).
 - ~~Watering and streaks~~ (built, local only).
 - **Rewards-based growth.** Growth stage and plant species should come from rewards actually earned, not a fixed seed stage, once reward payouts can be read and classified reliably.

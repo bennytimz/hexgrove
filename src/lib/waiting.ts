@@ -1,6 +1,6 @@
 /**
- * Describes the current unstaking wait — DOCUMENTED, NOT YET VERIFIED ON
- * CHAIN (docs/SPEC.md, "Unstaking timing", nimiq.dev/protocol/validators/
+ * Describes the current unstaking wait — confirmed on testnet, 2026-11-10
+ * (docs/SPEC.md, "Unstaking timing", nimiq.dev/protocol/validators/
  * stakers): a stake change takes effect at the next election block
  * (`inactiveFrom` on the staker record), then the inactive funds are
  * locked for one further epoch (`blocksPerEpoch`, read live, never

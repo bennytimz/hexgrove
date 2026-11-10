@@ -53,7 +53,7 @@ const spendableLoadFailed = ref(false)
 const minimumStakeLuna = ref<bigint | null>(null)
 const earningLuna = ref<bigint>(0n)
 const waitingLuna = ref<bigint>(0n)
-/** The waiting countdown's current phase and copy — see src/lib/waiting.ts, docs/SPEC.md "Unstaking timing" (DOCUMENTED, NOT YET VERIFIED ON CHAIN). */
+/** The waiting countdown's current phase and copy — see src/lib/waiting.ts, docs/SPEC.md "Unstaking timing" (confirmed on testnet, 2026-11-10). */
 const waitingPhase = ref<WaitingPhase | null>(null)
 const waitingText = ref('')
 const waitingCaveat = ref('')
@@ -66,7 +66,7 @@ const withdrawSheetOpen = ref(false)
 const latestInactiveFrom = ref<number | null>(null)
 const blocksPerEpoch = ref<number | null>(null)
 const currentBlockNumber = ref<number | null>(null)
-/** Past the release block, with funds still waiting — Withdraw becomes reachable. UNVERIFIED, see docs/SPEC.md. */
+/** Past the release block, with funds still waiting — Withdraw becomes reachable. Confirmed on testnet, 2026-11-10, see docs/SPEC.md. */
 const readyToWithdraw = computed(() => {
   if (waitingLuna.value <= 0n || latestInactiveFrom.value === null || blocksPerEpoch.value === null || currentBlockNumber.value === null)
     return false

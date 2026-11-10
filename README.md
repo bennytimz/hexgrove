@@ -61,7 +61,7 @@ Opening the same URL in a regular desktop browser (outside Nimiq Pay) should sho
 
 From the home screen, **Stake** (no stake yet) or **Add stake** (already staked) opens a sheet with an amount field and, for a new stake, a validator chooser. Approve the transaction in Nimiq Pay when prompted; the sheet polls the chain and updates the garden once the stake shows.
 
-The validator chooser shows each pool's fee, reliability score and share of the network when Nimiq's Validators API (`src/nimiq/validatorsApi.ts`) is reachable, with a **Recommended** tag for pools that meet the spec's criteria, and marks which one was auto-selected as the default. This is additive: if that API is unreachable, the chooser falls back to the chain's plain active/not-active signal, exactly as before.
+The validator chooser shows each pool's fee, reliability score and share of the network when Nimiq's Validators API (`src/nimiq/validatorsApi.ts`) is reachable, with a **Recommended** tag for pools that meet the spec's criteria, and marks which one was auto-selected as the default. This is additive: if that API is unreachable or returns nothing, the chooser falls back to the chain's plain active/not-active signal and shows "Fee and reliability aren't available right now" — on a real phone, mainnet, 2026-11-10, this fallback is exactly what happened (CORS and address-format were both checked and ruled out; see `docs/SPEC.md`'s testnet/mainnet observations for what's still unconfirmed).
 
 Testnet NIM has no value — get some from a testnet faucet first if your wallet is empty. The minimum to create a new staker is read live from the chain (confirmed as 100 NIM on testnet); adding to an existing staker has no separate minimum.
 
@@ -133,7 +133,7 @@ Via [`@nimiq/mini-app-sdk`](https://www.npmjs.com/package/@nimiq/mini-app-sdk) (
 - `nimiq.request({ method: 'getPolicyConstants' })` — the live minimum stake (never hardcoded). **Confirmed on testnet:** `minimumStake: 10000000` Luna (100 NIM).
 - `nimiq.request({ method: 'getActiveValidators' })` — the validator chooser's list and the home screen's sky condition (active/jailed/retired; always checked first, always wins).
 
-Also, not part of the SDK: Nimiq's own Validators API (`src/nimiq/validatorsApi.ts`), fee/reliability/pool-size data layered additively on top of the above. **Confirmed reachable on both networks, 2026-11-10** — see `docs/SPEC.md`, open question 9.
+Also, not part of the SDK: Nimiq's own Validators API (`src/nimiq/validatorsApi.ts`), fee/reliability/pool-size data layered additively on top of the above. **Confirmed reachable via curl and a desktop browser on both networks, 2026-11-10, but not yet confirmed working from inside Nimiq Pay itself** — see `docs/SPEC.md`, open question 9 and the mainnet observations.
 
 All Luna/NIM conversions (`src/lib/luna.ts`) use `BigInt`, never floats.
 

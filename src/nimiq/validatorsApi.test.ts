@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { directoryUrlForNetwork, isRecommendedValidator, parseDirectoryEntry, VALIDATORS_API_MAINNET_URL, VALIDATORS_API_TESTNET_URL } from './validatorsApi'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { directoryUrlForNetwork, fetchValidatorsDirectory, isRecommendedValidator, parseDirectoryEntry, VALIDATORS_API_MAINNET_URL, VALIDATORS_API_TESTNET_URL } from './validatorsApi'
 
 describe('directoryUrlForNetwork', () => {
   it('picks the mainnet directory for \'mainnet\', testnet otherwise', () => {
@@ -86,5 +86,55 @@ describe('isRecommendedValidator', () => {
     expect(isRecommendedValidator({ ...qualifying, feeFraction: null })).toBe(false)
     expect(isRecommendedValidator({ ...qualifying, scoreTotal: null })).toBe(false)
     expect(isRecommendedValidator({ ...qualifying, dominanceRatio: null })).toBe(false)
+  })
+})
+
+describe('fetchValidatorsDirectory', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('resolves to an empty array and logs the reason when fetch itself throws (network down, CORS, or blocked by the host)', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+
+    const result = await fetchValidatorsDirectory('mainnet')
+
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('validator directory'), expect.stringContaining('Failed to fetch'))
+    consoleSpy.mockRestore()
+  })
+
+  it('resolves to an empty array and logs the status when the response is not ok', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }))
+
+    const result = await fetchValidatorsDirectory('testnet')
+
+    expect(result).toEqual([])
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('500'))
+    consoleSpy.mockRestore()
+  })
+
+  it('resolves to an empty array without throwing when the response body is not an array', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ error: 'nope' }) }))
+
+    const result = await fetchValidatorsDirectory('mainnet')
+
+    expect(result).toEqual([])
+  })
+
+  it('parses a successful response into ValidatorDirectoryEntry objects, querying the right URL for the network', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [{ address: 'NQ00 0000 0000 0000 0000 0000 0000 0000 0000', fee: 0.05, payoutType: 'direct', dominanceRatio: 0.01, score: { total: 0.9 } }],
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await fetchValidatorsDirectory('mainnet')
+
+    expect(result).toHaveLength(1)
+    expect(result[0].feeFraction).toBe(0.05)
+    expect(fetchMock.mock.calls[0][0]).toBe(`${VALIDATORS_API_MAINNET_URL}/api/v1/validators`)
   })
 })

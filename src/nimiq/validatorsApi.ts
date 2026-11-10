@@ -66,17 +66,29 @@ export function isRecommendedValidator(entry: ValidatorDirectoryEntry): boolean 
  * never throws, and resolves to an empty array on any failure (network
  * error, non-OK status, unexpected shape) — callers fall back to whatever
  * they did before this existed, exactly as if the array were always empty.
+ * Logs why, so a silent empty result is never a dead end to debug.
+ *
+ * Uses a manual AbortController rather than AbortSignal.timeout() — the
+ * latter is a newer addition (Safari 16+, 2022) and this runs inside
+ * whatever WebView engine Nimiq Pay embeds, which is unconfirmed; a plain
+ * AbortController has been supported since Safari 11.1 (2018).
  */
 export async function fetchValidatorsDirectory(network: Network | undefined): Promise<ValidatorDirectoryEntry[]> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 8000)
   try {
     const response = await fetch(`${directoryUrlForNetwork(network)}/api/v1/validators`, {
-      signal: AbortSignal.timeout(8000),
+      signal: controller.signal,
     })
-    if (!response.ok)
+    if (!response.ok) {
+      console.error(`Could not load the validator directory: answered ${response.status}`)
       return []
+    }
     const body: unknown = await response.json()
-    if (!Array.isArray(body))
+    if (!Array.isArray(body)) {
+      console.error('Could not load the validator directory: response was not an array')
       return []
+    }
     const out: ValidatorDirectoryEntry[] = []
     for (const entry of body) {
       const parsed = parseDirectoryEntry(entry)
@@ -86,7 +98,10 @@ export async function fetchValidatorsDirectory(network: Network | undefined): Pr
     return out
   }
   catch (error) {
-    console.error('Could not load the validator directory:', error)
+    console.error('Could not load the validator directory:', error instanceof Error ? `${error.name}: ${error.message}` : error)
     return []
+  }
+  finally {
+    clearTimeout(timeoutId)
   }
 }

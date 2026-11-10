@@ -44,6 +44,8 @@ const validators = ref<ValidatorOption[]>([])
 const selectedValidator = ref('')
 /** The validator pickDefaultValidator() chose when the sheet opened — kept even after the user picks a different one, so the list can still mark which one was the default. */
 const defaultValidatorAddress = ref('')
+/** True when the Validators API returned nothing (failed, timed out, or just an empty list) — the chain-RPC fields still work, this only hides fee/reliability/size/Recommended. The reason is logged to the console by fetchValidatorsDirectory itself. */
+const directoryUnavailable = ref(false)
 
 const amountInput = ref('')
 const amountError = ref('')
@@ -166,6 +168,7 @@ async function loadForm() {
       fetchValidatorsDirectory(getHostNetwork()),
     ])
     minimumLuna.value = typeof policy?.minimumStake === 'number' ? BigInt(policy.minimumStake) : null
+    directoryUnavailable.value = directory.length === 0
     validators.value = mergeDirectory(parseValidators(rawValidators), directory)
     if (!validators.value.length) {
       loadError.value = true
@@ -454,6 +457,9 @@ const locked = computed(() => phase.value === 'sending' || phase.value === 'conf
               </button>
             </li>
           </ul>
+          <p v-if="directoryUnavailable" class="hint">
+            Fee and reliability aren't available right now.
+          </p>
         </template>
 
         <p class="hint">

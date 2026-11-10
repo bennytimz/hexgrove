@@ -13,6 +13,7 @@ const KNOWN_MOCK_FAIL_MODES = [
   'stakeMaybeSent',
   'stakeBlocked',
   'stakeTimedOut',
+  'stakeNoAnswer',
 ]
 
 async function bootstrap() {

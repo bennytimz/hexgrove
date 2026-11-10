@@ -4,7 +4,7 @@ import type { NimiqProvider } from '../nimiq/provider'
 import { computed, onMounted, ref } from 'vue'
 import { formatNim, nimToLuna } from '../lib/luna'
 import { isValidatorHealthy } from '../lib/sky'
-import { classifyTxError, TX_OUTCOME_COPY } from '../lib/txOutcome'
+import { classifyStakeRecheck, classifyTxError, TX_OUTCOME_COPY } from '../lib/txOutcome'
 import { DEFAULT_TESTNET_RPC_URL, getProvider } from '../nimiq/provider'
 import { readCombinedStaker } from '../nimiq/staker'
 
@@ -49,6 +49,8 @@ const baselineTotal = ref<bigint>(0n)
  * own, as "blocked", the moment a retry is actually attempted.
  */
 const timedOutRetryAllowed = ref(false)
+/** "A few seconds" for the automatic post-"timed out" chain check. */
+const TIMED_OUT_AUTO_CHECK_DELAY_MS = 4000
 
 function shortAddr(address: string): string {
   const parts = address.split(' ').filter(Boolean)
@@ -233,6 +235,8 @@ async function onSubmit() {
     console.error('Stake transaction failed:', error)
     outcome.value = classifyTxError(error)
     phase.value = 'outcome'
+    if (outcome.value === 'timedOut')
+      scheduleTimedOutAutoCheck()
   }
 }
 
@@ -259,27 +263,44 @@ async function checkAgain() {
 /**
  * "Timed out" never offers an immediate retry (cause unconfirmed, see
  * docs/SPEC.md). Checks the chain first: confirmed if the stake now shows,
- * otherwise unlocks Try again rather than resubmitting automatically.
+ * otherwise unlocks Try again rather than resubmitting automatically. If
+ * the check itself fails, leaves only the manual Check again button.
  */
 async function checkTimedOut() {
   phase.value = 'confirming'
+  let result: ReturnType<typeof classifyStakeRecheck> = 'checkFailed'
   try {
     const nimiq = await getProvider()
     nimiq.setRPCUrl(DEFAULT_TESTNET_RPC_URL)
     const after = await readCombinedStaker(nimiq, props.addresses)
     const total = after.earningLuna + after.waitingLuna + after.releasedLuna
-    if (total > baselineTotal.value) {
-      phase.value = 'success'
-      emit('staked')
-      return
-    }
-    timedOutRetryAllowed.value = true
+    result = classifyStakeRecheck({ ok: true, total }, baselineTotal.value)
   }
   catch (error) {
     console.error('Could not check for confirmation:', error)
   }
+
+  if (result === 'confirmed') {
+    phase.value = 'success'
+    emit('staked')
+    return
+  }
+  timedOutRetryAllowed.value = result === 'unchanged'
   outcome.value = 'timedOut'
   phase.value = 'outcome'
+}
+
+/**
+ * Fires once, a few seconds after a fresh "timed out" outcome appears, so
+ * the chain gets checked without making the user ask. Skipped if the user
+ * has already moved on (closed, retried, or manually checked) by the time
+ * it fires.
+ */
+function scheduleTimedOutAutoCheck() {
+  setTimeout(() => {
+    if (phase.value === 'outcome' && outcome.value === 'timedOut' && !timedOutRetryAllowed.value)
+      checkTimedOut()
+  }, TIMED_OUT_AUTO_CHECK_DELAY_MS)
 }
 
 function tryAgain() {
@@ -376,7 +397,7 @@ const locked = computed(() => phase.value === 'sending' || phase.value === 'conf
 
       <template v-else-if="phase === 'outcome' && outcome">
         <h3>{{ TX_OUTCOME_COPY[outcome].title }}</h3>
-        <p>{{ TX_OUTCOME_COPY[outcome].message }}</p>
+        <p>{{ outcome === 'timedOut' && timedOutRetryAllowed ? 'Nothing changed. You can try again.' : TX_OUTCOME_COPY[outcome].message }}</p>
         <button v-if="outcome === 'declined'" class="btn-primary" type="button" @click="close">
           Back
         </button>

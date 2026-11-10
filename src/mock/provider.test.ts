@@ -188,6 +188,7 @@ describe('installMockProvider', () => {
       ['stakeMaybeSent', 'maybeSent'],
       ['stakeBlocked', 'blocked'],
       ['stakeTimedOut', 'timedOut'],
+      ['stakeNoAnswer', 'timedOut'],
     ] as const
 
     it.each(stakeFailModes)('"%s" makes both staking calls throw an error that classifies as "%s"', async (failMode, expectedOutcome) => {

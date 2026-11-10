@@ -35,15 +35,19 @@ export const TX_OUTCOME_COPY: Record<TxOutcome, TxOutcomeCopy> = {
   },
   timedOut: {
     title: 'Timed out',
-    message: 'Nimiq Pay didn\'t finish in time. Check Nimiq Pay\'s history before trying again.',
+    message: 'Nimiq Pay didn\'t answer. If you closed the approval, nothing was sent. We\'ll check before you try again.',
   },
 }
 
 /**
  * Classifies a failed staking call into one of the outcomes above. Blocked
  * and Timed out share the same type/code (INTERNAL_ERROR, -32603) on
- * testnet, so they're told apart by the message text — "pending" vs.
- * "timed out" — never shown to the user, only matched against.
+ * testnet, so they're told apart by the message text. Two different
+ * messages have been seen mapping to Timed out: "Operation timed out
+ * after 30000 milliseconds", and a swiped-away approval sheet's
+ * `[birpc] timeout on calling "handleRequest"` — neither cause is
+ * confirmed (see docs/SPEC.md), so both are treated the same: no answer
+ * from Nimiq Pay, never shown as the raw message.
  */
 export function classifyTxError(error: unknown): TxOutcome {
   if (NimiqProviderError.is(error)) {
@@ -55,11 +59,26 @@ export function classifyTxError(error: unknown): TxOutcome {
       return 'networkDown'
     if (error.type === 'INTERNAL_ERROR' || error.code === -32603) {
       const message = error.message.toLowerCase()
-      if (message.includes('timed out'))
+      if (message.includes('timed out') || message.includes('[birpc] timeout'))
         return 'timedOut'
       if (message.includes('pending'))
         return 'blocked'
     }
   }
   return 'notSent'
+}
+
+export type StakeRecheckResult = 'confirmed' | 'unchanged' | 'checkFailed'
+
+/**
+ * Pure decision for what a post-"timed out" chain re-check means, kept
+ * separate from the actual chain read so it's unit-testable: a read that
+ * failed can't tell us anything, a read that succeeded but shows no
+ * increase means nothing changed, and an increase means it went through
+ * after all.
+ */
+export function classifyStakeRecheck(read: { ok: true, total: bigint } | { ok: false }, baselineTotal: bigint): StakeRecheckResult {
+  if (!read.ok)
+    return 'checkFailed'
+  return read.total > baselineTotal ? 'confirmed' : 'unchanged'
 }

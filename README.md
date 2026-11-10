@@ -82,7 +82,8 @@ Add `&fail=` to simulate a specific failure:
 | `stakeNetworkDown` | The stake sheet's approval fails with a `NETWORK_ERROR` |
 | `stakeMaybeSent` | The stake sheet's approval returns `TRANSACTION_OUTCOME_UNKNOWN` — shows "Check again" / "Back to garden", never a plain retry |
 | `stakeBlocked` | The stake sheet's approval is refused because another transaction is still pending |
-| `stakeTimedOut` | The stake sheet's approval is left unconfirmed for ~30 seconds and times out |
+| `stakeTimedOut` | Nimiq Pay returns "Operation timed out after 30000 milliseconds" — shows "Timed out", never an immediate retry |
+| `stakeNoAnswer` | Nimiq Pay returns a `[birpc] timeout` error (e.g. the approval sheet was swiped away) — also shows "Timed out" |
 
 Example: `http://localhost:5173/?mock=1&fail=declined`
 

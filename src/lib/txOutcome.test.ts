@@ -1,6 +1,6 @@
 import { NimiqProviderError } from '@nimiq/mini-app-sdk'
 import { describe, expect, it } from 'vitest'
-import { classifyTxError, TX_OUTCOME_COPY } from './txOutcome'
+import { classifyStakeRecheck, classifyTxError, TX_OUTCOME_COPY } from './txOutcome'
 
 describe('classifyTxError', () => {
   it('classifies a declined request', () => {
@@ -24,6 +24,11 @@ describe('classifyTxError', () => {
     expect(classifyTxError(timedOut)).toBe('timedOut')
   })
 
+  it('also classifies a swiped-away approval sheet\'s "[birpc] timeout" as "timed out"', () => {
+    const birpcTimeout = new NimiqProviderError('INTERNAL_ERROR', '[birpc] timeout on calling "handleRequest"', -32603)
+    expect(classifyTxError(birpcTimeout)).toBe('timedOut')
+  })
+
   it('falls back to "not sent" for anything unrecognized, including plain errors', () => {
     expect(classifyTxError(new NimiqProviderError('INVALID_TRANSACTION', 'Bad params.', -32602))).toBe('notSent')
     expect(classifyTxError(new Error('boom'))).toBe('notSent')
@@ -43,8 +48,26 @@ describe('TX_OUTCOME_COPY', () => {
     }
   })
 
-  it('does not claim a cause for "timed out" — the real cause is unconfirmed (see docs/SPEC.md)', () => {
-    const { title, message } = TX_OUTCOME_COPY.timedOut
-    expect(`${title} ${message}`.toLowerCase()).not.toMatch(/30|second|hear back|didn't respond|approval/)
+  it('does not pin "timed out" to a specific duration or a single confirmed cause (see docs/SPEC.md)', () => {
+    const { message } = TX_OUTCOME_COPY.timedOut
+    const lower = message.toLowerCase()
+    expect(lower).not.toMatch(/\d+\s*(second|ms|millisecond)/) // no "30 seconds" / "30000ms" claims
+    expect(lower).not.toContain('hear back') // the earlier, now-disproven assumption
+  })
+})
+
+describe('classifyStakeRecheck', () => {
+  it('is "confirmed" when the re-read total is above the baseline', () => {
+    expect(classifyStakeRecheck({ ok: true, total: 150n }, 100n)).toBe('confirmed')
+  })
+
+  it('is "unchanged" when the re-read total is at or below the baseline', () => {
+    expect(classifyStakeRecheck({ ok: true, total: 100n }, 100n)).toBe('unchanged')
+    expect(classifyStakeRecheck({ ok: true, total: 0n }, 100n)).toBe('unchanged')
+  })
+
+  it('is "checkFailed" when the re-read itself failed, regardless of baseline', () => {
+    expect(classifyStakeRecheck({ ok: false }, 100n)).toBe('checkFailed')
+    expect(classifyStakeRecheck({ ok: false }, 0n)).toBe('checkFailed')
   })
 })

@@ -3,6 +3,8 @@ import {
   estimatedYearlyRewardLuna,
   GENESIS_SUPPLY_LUNA,
   GENESIS_TIME_MS,
+  MAX_PLAUSIBLE_NETWORK_RATE,
+  MIN_PLAUSIBLE_NETWORK_RATE,
   networkRate,
   supplyAtLuna,
   TOTAL_SUPPLY_LUNA,
@@ -87,10 +89,42 @@ describe('networkRate', () => {
   })
 
   it('scales inversely with active stake', () => {
+    // Both figures land inside the plausibility guard (1%-25%) — picked large
+    // enough that halving the stake doesn't cross MAX_PLAUSIBLE_NETWORK_RATE.
     const now = Date.parse('2026-11-10T00:00:00Z')
-    const smaller = networkRate(now, 1_000_000 * 100_000)!
-    const larger = networkRate(now, 2_000_000 * 100_000)!
+    const smaller = networkRate(now, 10_000_000_000 * 100_000)!
+    const larger = networkRate(now, 20_000_000_000 * 100_000)!
     expect(smaller).toBeCloseTo(larger * 2, 5)
+  })
+
+  it('hides an implausibly high rate (active stake far too small)', () => {
+    // 2026-11-10: a real mainnet getActiveValidators call put total active
+    // stake at ~8.93 billion NIM (docs/SPEC.md) — a few million NIM is not
+    // a real scenario, and the resulting rate would be wildly above 25%.
+    const now = Date.parse('2026-11-10T00:00:00Z')
+    expect(networkRate(now, 1_000_000 * 100_000)).toBeNull()
+  })
+
+  it('hides an implausibly low rate (active stake far too large)', () => {
+    const now = Date.parse('2026-11-10T00:00:00Z')
+    expect(networkRate(now, 500_000_000_000 * 100_000)).toBeNull()
+  })
+
+  it('allows rates at the edge of the plausible band', () => {
+    const now = Date.parse('2026-11-10T00:00:00Z')
+    // Solve for the active stake that lands exactly at each bound, then
+    // nudge a hair inside vs. outside it.
+    const supplyNow = supplyAtLuna(now)
+    const supplyInOneYear = supplyAtLuna(now + 365 * 24 * 60 * 60 * 1000)
+    const issuedLuna = supplyInOneYear - supplyNow
+
+    const stakeAtMax = issuedLuna / MAX_PLAUSIBLE_NETWORK_RATE
+    expect(networkRate(now, stakeAtMax * 1.001)).not.toBeNull() // just inside (lower rate)
+    expect(networkRate(now, stakeAtMax * 0.999)).toBeNull() // just outside (higher rate)
+
+    const stakeAtMin = issuedLuna / MIN_PLAUSIBLE_NETWORK_RATE
+    expect(networkRate(now, stakeAtMin * 0.999)).not.toBeNull() // just inside (higher rate)
+    expect(networkRate(now, stakeAtMin * 1.001)).toBeNull() // just outside (lower rate)
   })
 })
 

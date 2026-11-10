@@ -84,17 +84,31 @@ export function totalActiveStakeLuna(
 }
 
 /**
+ * Plausibility guard: real Nimiq network rates have sat in the single
+ * digits (cross-checked against stakingrewards.com/asset/nimiq, 2026-11-10:
+ * ~8%, see docs/SPEC.md). A result outside this band means active_stake is
+ * wrong or stale (e.g. way too small a validator sample, like this app's
+ * own mock data — see src/mock/provider.ts), not a genuine rate — hide the
+ * estimate rather than show a number nobody could back up.
+ */
+export const MIN_PLAUSIBLE_NETWORK_RATE = 0.01
+export const MAX_PLAUSIBLE_NETWORK_RATE = 0.25
+
+/**
  * Non-compounded annual network reward rate (a fraction, e.g. 0.08 = 8%).
- * Null when active_stake is missing or not positive (nothing to divide by)
- * — never shown as 0%, since that would read as "no yield" rather than
- * "unknown".
+ * Null when active_stake is missing or not positive (nothing to divide by),
+ * or when the result falls outside the plausibility guard above — never
+ * shown as 0%, since that would read as "no yield" rather than "unknown".
  */
 export function networkRate(nowMs: number, activeStakeLuna: number): number | null {
   if (!(activeStakeLuna > 0))
     return null
   const supplyNow = supplyAtLuna(nowMs)
   const supplyInOneYear = supplyAtLuna(nowMs + MS_PER_YEAR)
-  return (supplyInOneYear - supplyNow) / activeStakeLuna
+  const rate = (supplyInOneYear - supplyNow) / activeStakeLuna
+  if (rate < MIN_PLAUSIBLE_NETWORK_RATE || rate > MAX_PLAUSIBLE_NETWORK_RATE)
+    return null
+  return rate
 }
 
 /** A validator's own rate after its fee. Null if either input is missing. */

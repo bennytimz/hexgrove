@@ -664,7 +664,7 @@ onMounted(connect)
 
         <template v-else>
           <h1>Stake NIM. Grow a garden.</h1>
-          <p>Staking NIM grows a garden of hex plots that fills in as your stake earns rewards. Rewards vary, and stopping takes time.</p>
+          <p>Staking NIM opens hex plots in your garden. Rewards vary, and stopping takes time.</p>
           <p v-if="minimumStakeLuna !== null" class="hint">
             {{ !spendableLoadFailed && shortfallLuna(minimumStakeLuna, spendableLuna) > 0n
               ? `Staking needs at least ${formatNim(minimumStakeLuna)} NIM. You have ${formatNim(spendableLuna)} NIM.`

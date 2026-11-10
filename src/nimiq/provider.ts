@@ -10,9 +10,11 @@ const DEFAULT_TIMEOUT_MS = 10_000
 export const DEFAULT_TESTNET_RPC_URL = 'https://rpc.testnet.nimiqwatch.com'
 /**
  * Mainnet RPC endpoint, same one NimJar's src/server.js defaults to.
- * UNVERIFIED — not yet confirmed working from this app on a real mainnet
- * Nimiq Pay session (CORS, correctness, everything). See docs/SPEC.md,
- * Open questions.
+ * Reads (getBalance, getStakerByAddress, getPolicyConstants,
+ * getActiveValidators) are confirmed working from this app on a real
+ * mainnet Nimiq Pay session, 2026-11-10 — as is sendNewStakerTransaction
+ * (a real 100 NIM stake). Other writes (add stake, stop earning, withdraw)
+ * are still UNVERIFIED on mainnet. See docs/SPEC.md, Open question 12.
  */
 export const DEFAULT_MAINNET_RPC_URL = 'https://rpc.nimiqwatch.com'
 

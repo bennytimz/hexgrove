@@ -66,6 +66,8 @@ export interface ValidatorOption {
   address: string
   numStakers: number
   healthy: boolean
+  /** From getActiveValidators, in Luna. Null when the chain didn't report one (used only for the active_stake total, src/lib/yield.ts). */
+  balanceLuna: number | null
   feeFraction: number | null
   scoreTotal: number | null
   dominanceRatio: number | null

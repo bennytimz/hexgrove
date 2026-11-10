@@ -6,6 +6,7 @@ import { computed, onMounted, ref } from 'vue'
 import { formatNim, nimToLuna, shortfallLuna } from '../lib/luna'
 import { compactAddress, isValidatorHealthy } from '../lib/sky'
 import { classifyStakeRecheck, classifyTxError, TX_OUTCOME_COPY } from '../lib/txOutcome'
+import { networkRate, validatorRate } from '../lib/yield'
 import { getHostNetwork, getProvider, rpcUrlForNetwork } from '../nimiq/provider'
 import { readPolicyConstants } from '../nimiq/policy'
 import { readCombinedStaker } from '../nimiq/staker'
@@ -36,6 +37,8 @@ const selectedValidator = ref('')
 const defaultValidatorAddress = ref('')
 /** True when the Validators API returned nothing (failed, timed out, or just an empty list) — the chain-RPC fields still work, this only hides fee/reliability/size/Recommended. The reason is logged to the console by fetchValidatorsDirectory itself. */
 const directoryUnavailable = ref(false)
+/** The network reward rate (src/lib/yield.ts), from this load's active-stake total. Null hides every per-validator rate, never a placeholder. */
+const networkRateValue = ref<number | null>(null)
 
 const amountInput = ref('')
 const amountError = ref('')
@@ -78,6 +81,9 @@ function validatorMetaLine(v: ValidatorOption): string {
     parts.push(`${formatFraction(v.scoreTotal)} reliability`)
   if (v.dominanceRatio !== null)
     parts.push(`${formatFraction(v.dominanceRatio)} of network`)
+  const rate = validatorRate(networkRateValue.value, v.feeFraction)
+  if (rate !== null)
+    parts.push(`about ${formatFraction(rate)} a year`)
   return parts.join(' · ')
 }
 
@@ -87,11 +93,12 @@ function parseValidators(raw: unknown): ValidatorOption[] {
   const out: ValidatorOption[] = []
   for (const entry of raw) {
     if (entry && typeof entry === 'object' && typeof (entry as { address?: unknown }).address === 'string') {
-      const v = entry as { address: string, numStakers?: unknown, retired?: boolean, inactivityFlag?: unknown, jailedFrom?: unknown }
+      const v = entry as { address: string, balance?: unknown, numStakers?: unknown, retired?: boolean, inactivityFlag?: unknown, jailedFrom?: unknown }
       out.push({
         address: v.address,
         numStakers: typeof v.numStakers === 'number' ? v.numStakers : 0,
         healthy: isValidatorHealthy(v),
+        balanceLuna: typeof v.balance === 'number' ? v.balance : null,
         feeFraction: null,
         scoreTotal: null,
         dominanceRatio: null,
@@ -154,6 +161,10 @@ async function loadForm() {
     validators.value = sortValidatorOptions(merged)
     selectedValidator.value = pickDefaultValidator(merged)
     defaultValidatorAddress.value = selectedValidator.value
+
+    const activeStakeLuna = merged.reduce((sum, v) => (v.healthy && v.balanceLuna !== null) ? sum + v.balanceLuna! : sum, 0)
+    networkRateValue.value = networkRate(Date.now(), activeStakeLuna)
+
     phase.value = 'form'
   }
   catch (error) {

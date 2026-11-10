@@ -139,9 +139,9 @@ describe('installMockProvider', () => {
 
     const validators = await nimiq.request({ method: 'getActiveValidators' })
     expect(validators).toEqual([
-      { address: MOCK_VALIDATOR_ADDRESS, numStakers: 420, retired: false, inactivityFlag: null, jailedFrom: null },
-      { address: MOCK_VALIDATOR_ADDRESS_2, numStakers: 12, retired: true, inactivityFlag: null, jailedFrom: null },
-      { address: MOCK_VALIDATOR_ADDRESS_3, numStakers: 90, retired: false, inactivityFlag: null, jailedFrom: null },
+      { address: MOCK_VALIDATOR_ADDRESS, balance: 75_200_000_000_000, numStakers: 420, retired: false, inactivityFlag: null, jailedFrom: null },
+      { address: MOCK_VALIDATOR_ADDRESS_2, balance: 9_000_000_000_000, numStakers: 12, retired: true, inactivityFlag: null, jailedFrom: null },
+      { address: MOCK_VALIDATOR_ADDRESS_3, balance: 18_800_000_000_000, numStakers: 90, retired: false, inactivityFlag: null, jailedFrom: null },
     ])
   })
 

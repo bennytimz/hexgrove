@@ -4,17 +4,19 @@ import type { PlantData } from '../lib/plants'
 import type { SkyCondition } from '../lib/sky'
 import type { WaitingPhase } from '../lib/waiting'
 import type { StoredWatering } from '../lib/watering'
+import type { ActiveValidatorFields } from '../lib/yield'
 import { computed, onMounted, ref } from 'vue'
 import HexGarden from './HexGarden.vue'
 import StakeSheet from './StakeSheet.vue'
 import StopEarningSheet from './StopEarningSheet.vue'
 import WithdrawSheet from './WithdrawSheet.vue'
-import { formatNim, shortfallLuna } from '../lib/luna'
+import { formatNim, LUNA_PER_NIM, shortfallLuna } from '../lib/luna'
 import { PREVIEW_PLANTS } from '../lib/plants'
 import { nextTier, plotsForStake } from '../lib/plots'
-import { compactAddress, computeSkyState } from '../lib/sky'
+import { compactAddress, computeSkyState, isValidatorHealthy } from '../lib/sky'
 import { computeWateringState, waterToday } from '../lib/watering'
 import { describeWaitingState, releaseBlock } from '../lib/waiting'
+import { estimatedYearlyRewardLuna, networkRate, totalActiveStakeLuna, validatorRate } from '../lib/yield'
 import { getHostNetwork, getProvider, NimiqProviderError, resetProvider, rpcUrlForNetwork } from '../nimiq/provider'
 import { readPolicyConstants } from '../nimiq/policy'
 import { readCombinedStaker } from '../nimiq/staker'
@@ -74,6 +76,8 @@ const readyToWithdraw = computed(() => {
 const initialSky = computeSkyState(null)
 const skyCondition = ref<SkyCondition>(initialSky.condition)
 const skyLabel = ref(initialSky.label)
+/** Estimated reward over the next year at the current rate and the validator's fee (src/lib/yield.ts). Null hides the line entirely — never a placeholder. */
+const yearlyRewardLuna = ref<number | null>(null)
 
 const watered = ref(false)
 const streak = ref(0)
@@ -115,6 +119,12 @@ function shortAddr(address: string): string {
   if (parts.length <= 3)
     return address
   return `${parts[0]} ${parts[1]} … ${parts[parts.length - 1]}`
+}
+
+/** Rounds to the nearest whole NIM before formatting — an estimate shouldn't claim 5-decimal precision. */
+function formatYearlyEstimate(luna: number): string {
+  const lunaPerNim = Number(LUNA_PER_NIM)
+  return formatNim(Math.round(luna / lunaPerNim) * lunaPerNim)
 }
 
 async function connect() {
@@ -204,6 +214,7 @@ async function loadSky(nimiq: NimiqProvider, delegation: string | null) {
     const state = computeSkyState(null)
     skyCondition.value = state.condition
     skyLabel.value = state.label
+    yearlyRewardLuna.value = null
     return
   }
 
@@ -221,12 +232,20 @@ async function loadSky(nimiq: NimiqProvider, delegation: string | null) {
     const state = computeSkyState(match ?? null, directoryEntry?.scoreTotal ?? null)
     skyCondition.value = state.condition
     skyLabel.value = state.label
+
+    const activeStakeLuna = totalActiveStakeLuna(
+      (Array.isArray(validators) ? validators : []) as ActiveValidatorFields[],
+      isValidatorHealthy,
+    )
+    const rate = validatorRate(networkRate(Date.now(), activeStakeLuna), directoryEntry?.feeFraction ?? null)
+    yearlyRewardLuna.value = estimatedYearlyRewardLuna(Number(earningLuna.value), rate)
   }
   catch (error) {
     console.error('Could not load validator state:', error)
     const state = computeSkyState(null)
     skyCondition.value = state.condition
     skyLabel.value = state.label
+    yearlyRewardLuna.value = null
   }
 }
 
@@ -538,6 +557,9 @@ onMounted(connect)
           <div class="stat">
             <small>Earning</small>
             <b>{{ formatNim(earningLuna) }} NIM</b>
+            <span v-if="yearlyRewardLuna !== null" class="hint">
+              About {{ formatYearlyEstimate(yearlyRewardLuna) }} NIM a year at your validator's fee. Estimate, never guaranteed.
+            </span>
           </div>
           <div v-if="waitingLuna > 0n" class="stat">
             <small>{{ waitingPhase === 'ready' ? 'Ready to withdraw' : 'Waiting' }}</small>

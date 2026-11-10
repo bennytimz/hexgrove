@@ -322,10 +322,15 @@ export function createMockProvider(failMode: MockFailMode, noStake = false, wait
         throw new Error(`getStakerByAddress: no staker with address ${address}`)
       }
       if (args.method === 'getActiveValidators') {
+        // `balance` figures are real-world-scale per validator (src/lib/yield.ts
+        // active_stake), but this mock only models 3 validators, not the whole
+        // network — the estimated yearly rate shown from this data is correctly
+        // computed, just not representative of the real ~8% network rate, since
+        // the real network's active_stake is the sum across dozens of validators.
         return [
-          { address: MOCK_VALIDATOR_ADDRESS, numStakers: 420, retired: false, inactivityFlag: null, jailedFrom: null },
-          { address: MOCK_VALIDATOR_ADDRESS_2, numStakers: 12, retired: true, inactivityFlag: null, jailedFrom: null },
-          { address: MOCK_VALIDATOR_ADDRESS_3, numStakers: 90, retired: false, inactivityFlag: null, jailedFrom: null },
+          { address: MOCK_VALIDATOR_ADDRESS, balance: 75_200_000_000_000, numStakers: 420, retired: false, inactivityFlag: null, jailedFrom: null },
+          { address: MOCK_VALIDATOR_ADDRESS_2, balance: 9_000_000_000_000, numStakers: 12, retired: true, inactivityFlag: null, jailedFrom: null },
+          { address: MOCK_VALIDATOR_ADDRESS_3, balance: 18_800_000_000_000, numStakers: 90, retired: false, inactivityFlag: null, jailedFrom: null },
         ] as T
       }
       if (args.method === 'getPolicyConstants') {

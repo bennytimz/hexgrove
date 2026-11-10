@@ -42,6 +42,13 @@ const amountError = ref('')
 const outcome = ref<TxOutcome | null>(null)
 const confirmedLuna = ref<bigint>(0n)
 const baselineTotal = ref<bigint>(0n)
+/**
+ * "Timed out"'s cause is unconfirmed (see docs/SPEC.md) — never offer an
+ * immediate retry for it. Only true once a chain check has shown nothing
+ * changed; a transaction that's still genuinely pending surfaces on its
+ * own, as "blocked", the moment a retry is actually attempted.
+ */
+const timedOutRetryAllowed = ref(false)
 
 function shortAddr(address: string): string {
   const parts = address.split(' ').filter(Boolean)
@@ -198,6 +205,7 @@ async function onSubmit() {
   if (!validate())
     return
   const value = amountLuna.value!
+  timedOutRetryAllowed.value = false
   phase.value = 'sending'
 
   try {
@@ -248,8 +256,35 @@ async function checkAgain() {
   phase.value = 'outcome'
 }
 
+/**
+ * "Timed out" never offers an immediate retry (cause unconfirmed, see
+ * docs/SPEC.md). Checks the chain first: confirmed if the stake now shows,
+ * otherwise unlocks Try again rather than resubmitting automatically.
+ */
+async function checkTimedOut() {
+  phase.value = 'confirming'
+  try {
+    const nimiq = await getProvider()
+    nimiq.setRPCUrl(DEFAULT_TESTNET_RPC_URL)
+    const after = await readCombinedStaker(nimiq, props.addresses)
+    const total = after.earningLuna + after.waitingLuna + after.releasedLuna
+    if (total > baselineTotal.value) {
+      phase.value = 'success'
+      emit('staked')
+      return
+    }
+    timedOutRetryAllowed.value = true
+  }
+  catch (error) {
+    console.error('Could not check for confirmation:', error)
+  }
+  outcome.value = 'timedOut'
+  phase.value = 'outcome'
+}
+
 function tryAgain() {
   outcome.value = null
+  timedOutRetryAllowed.value = false
   phase.value = 'form'
 }
 
@@ -347,6 +382,17 @@ const locked = computed(() => phase.value === 'sending' || phase.value === 'conf
         </button>
         <template v-else-if="outcome === 'maybeSent'">
           <button class="btn-primary" type="button" @click="checkAgain">
+            Check again
+          </button>
+          <button class="btn-ghost" type="button" @click="close">
+            Back to garden
+          </button>
+        </template>
+        <template v-else-if="outcome === 'timedOut'">
+          <button v-if="timedOutRetryAllowed" class="btn-primary" type="button" @click="tryAgain">
+            Try again
+          </button>
+          <button v-else class="btn-primary" type="button" @click="checkTimedOut">
             Check again
           </button>
           <button class="btn-ghost" type="button" @click="close">

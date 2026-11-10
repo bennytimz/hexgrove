@@ -34,8 +34,8 @@ export const TX_OUTCOME_COPY: Record<TxOutcome, TxOutcomeCopy> = {
     message: 'Nimiq Pay is still finishing your last request. Wait a moment, then try again.',
   },
   timedOut: {
-    title: 'Approval timed out',
-    message: 'Nimiq Pay didn\'t hear back from you in time, so nothing was sent.',
+    title: 'Timed out',
+    message: 'Nimiq Pay didn\'t finish in time. Check Nimiq Pay\'s history before trying again.',
   },
 }
 

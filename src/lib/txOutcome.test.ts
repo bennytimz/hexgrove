@@ -42,4 +42,9 @@ describe('TX_OUTCOME_COPY', () => {
       expect(outcome.message).not.toContain('—')
     }
   })
+
+  it('does not claim a cause for "timed out" — the real cause is unconfirmed (see docs/SPEC.md)', () => {
+    const { title, message } = TX_OUTCOME_COPY.timedOut
+    expect(`${title} ${message}`.toLowerCase()).not.toMatch(/30|second|hear back|didn't respond|approval/)
+  })
 })

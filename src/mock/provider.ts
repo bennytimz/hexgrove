@@ -87,9 +87,15 @@ function initialStakerState(noStake: boolean): Record<string, MockStakerRecord |
 }
 
 /**
- * The six TxOutcome failure shapes, confirmed on testnet, 2026-11-09 (see
- * docs/SPEC.md, Errors and copy, and src/lib/txOutcome.ts). Thrown by the
- * staking calls below when `failMode` requests one of them.
+ * The six TxOutcome failure shapes (see docs/SPEC.md, Errors and copy, and
+ * src/lib/txOutcome.ts). Thrown by the staking calls below when `failMode`
+ * requests one of them.
+ *
+ * `stakeTimedOut`'s message mirrors the one actually seen on testnet,
+ * 2026-11-09 — from the probe's `sendSetActiveStakeTransaction`, not from
+ * a real stake approval. Its cause is unconfirmed: leaving a real approval
+ * open 2+ minutes did not reproduce it (2026-11-10). Simulated here only
+ * so the "never an immediate retry" UI behavior stays testable.
  */
 function throwStakeFailure(failMode: MockFailMode): void {
   switch (failMode) {
@@ -104,7 +110,7 @@ function throwStakeFailure(failMode: MockFailMode): void {
     case 'stakeBlocked':
       throw new NimiqProviderError('INTERNAL_ERROR', 'A transaction is still pending. Wait for it to resolve before sending another.', -32603)
     case 'stakeTimedOut':
-      throw new NimiqProviderError('INTERNAL_ERROR', 'Operation timed out after 30000 milliseconds', -32603)
+      throw new NimiqProviderError('INTERNAL_ERROR', 'Failed to send payment transaction: Operation timed out after 30000 milliseconds', -32603)
   }
 }
 

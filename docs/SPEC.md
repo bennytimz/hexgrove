@@ -218,7 +218,7 @@ Every action that needs Nimiq Pay approval ends in one of seven outcomes, and ea
 | Maybe sent | We couldn't confirm yet | Your stake may or may not have gone through. Check your Nimiq Pay history before trying again, so you don't stake twice. | Check again, or Back to garden. Never a plain retry |
 | Withdraw step 2 fails | Almost done | Your stake is released, but the withdrawal didn't go through. Your NIM is safe. Finish when you're ready. | Finish withdrawing |
 | Blocked by a pending transaction | One at a time | Nimiq Pay is still finishing your last request. Wait a moment, then try again. | Try again |
-| Timed out | Approval timed out | Nimiq Pay didn't hear back from you in time, so nothing was sent. | Try again |
+| Timed out | Timed out | Nimiq Pay didn't finish in time. Check Nimiq Pay's history before trying again. | Check again, then Try again only once the chain shows nothing changed. Never an immediate retry |
 
 Use the same pattern for stake, stop earning, reactivate and withdraw, replacing "stake" with the right noun.
 
@@ -227,7 +227,8 @@ Use the same pattern for stake, stop earning, reactivate and withdraw, replacing
 - While waiting for approval, disable the button, lock the sheet, and save the pending intent locally so a restart can recover it.
 - For "maybe sent", poll the chain for the transaction or the updated stake for about 30 seconds before showing the unconfirmed message.
 - Detect "blocked by a pending transaction" as a `NimiqProviderError` of type `INTERNAL_ERROR`, code -32603, whose message mentions a pending transaction (seen on testnet, 2026-11-09, see Testnet observations below). Show the fixed copy above, never the raw message.
-- Detect "timed out" as a `NimiqProviderError` of type `INTERNAL_ERROR`, code -32603 — the same type and code as "blocked by a pending transaction" — told apart only by the message text mentioning a timeout (seen on testnet, 2026-11-09, see Testnet observations below). Never show the raw message.
+- Detect "timed out" as a `NimiqProviderError` of type `INTERNAL_ERROR`, code -32603 — the same type and code as "blocked by a pending transaction" — told apart only by the message text mentioning a timeout (seen once on testnet, cause unconfirmed, see Testnet observations below). Never show the raw message, and never claim a cause the copy can't back up.
+- For "timed out", never show an immediate retry. Read the chain first (same check as "maybe sent"); only reveal Try again once that check shows nothing changed. A still-pending transaction surfaces on its own the moment Try again is actually attempted, as "blocked by a pending transaction" — there's no confirmed way to check for one ahead of time.
 - Do all money math in integer Luna. NIM has up to 5 decimal places.
 - Derive the lifecycle step from chain state every time the app opens, never from local memory.
 
@@ -356,8 +357,9 @@ Recorded as seen, not as verified. None of these answer a numbered question abov
 - Open question 9: the testnet validator list (`getActiveValidators`) returns `address`, `balance`, `numStakers` and health flags only, no fee or reliability score. That question needs another data source.
 - Chain policy facts read from `getPolicyConstants` on testnet: 1-second blocks, a batch is 60 blocks, an epoch is 43,200 blocks (12 hours), the transaction validity window is 7,200 blocks.
 - `sendNewStakerTransaction({ delegation, value })` confirmed creating a staker; `sendStakeTransaction({ value })` confirmed adding to an existing staker, tested with a 100 NIM add.
-- An approval left unconfirmed for about 30 seconds returns `NimiqProviderError` type `INTERNAL_ERROR`, code -32603, message exactly "Operation timed out after 30000 milliseconds" — same type and code as "blocked by a pending transaction" (above), told apart only by the message. Added as a seventh outcome, "Timed out", in Errors and copy, above.
+- ~~An approval left unconfirmed for about 30 seconds returns `NimiqProviderError` type `INTERNAL_ERROR`, code -32603, message exactly "Operation timed out after 30000 milliseconds".~~ **Correction, 2026-11-10:** that assumed cause was wrong. The message was seen once, from the probe's `sendSetActiveStakeTransaction` ("Failed to send payment transaction: Operation timed out after 30000 milliseconds", nothing sent), not from `sendNewStakerTransaction` or `sendStakeTransaction`. On testnet, leaving a real stake approval open for over two minutes did **not** time out. The actual cause of the earlier 30000 ms message is unconfirmed — do not assume it means "left unconfirmed ~30 seconds". It still shares the exact type and code as "blocked by a pending transaction" above, told apart only by the message text. Because the cause is unconfirmed, the copy for this outcome no longer claims one (see Errors and copy), and the UI never offers an immediate retry for it — see the Flow rules bullet above.
 - `TRANSACTION_OUTCOME_UNKNOWN` (code -32001) maps to the existing "Maybe sent" outcome — never offer a plain retry for it, read the chain instead.
+- Declining an approval in Nimiq Pay was confirmed, 2026-11-10, on a real phone (testnet): lands correctly on the "No problem" outcome.
 
 ## Test plan
 

@@ -25,11 +25,12 @@ const props = withDefaults(defineProps<{
 
 const layout = computed(() => layoutGarden(props.plants.length, props.lockedPlots))
 
-const SKY_TITLES: Record<SkyCondition, string> = { sunny: 'Sunny', stormy: 'Stormy', dusk: 'Dusk' }
+const SKY_TITLES: Record<SkyCondition, string> = { sunny: 'Sunny', cloudy: 'Cloudy', stormy: 'Stormy', dusk: 'Dusk' }
 const skyTitle = computed(() => SKY_TITLES[props.skyCondition])
 
 const TILE_COLORS: Record<SkyCondition, { fill: string, stroke: string }> = {
   sunny: { fill: '#1D3B38', stroke: '#F6B22199' },
+  cloudy: { fill: '#273349', stroke: '#9AA6C499' },
   stormy: { fill: '#352F33', stroke: '#A38585AA' },
   dusk: { fill: '#1B2347', stroke: '#6F7DB877' },
 }
@@ -50,6 +51,13 @@ const STORM_CLOUDS = [
   { x: 110, y: 48, s: 1.5, color: '#3B3858', cls: '' },
   { x: 260, y: 40, s: 1.7, color: '#4A4570', cls: 'b' },
   { x: 200, y: 62, s: 1.3, color: '#322F4F', cls: '' },
+]
+
+/** Cloudy: the same drifting cloud shapes as Stormy, lighter and without rain. */
+const SOFT_CLOUDS = [
+  { x: 130, y: 44, s: 1.4, color: '#7C8AB8', cls: '' },
+  { x: 270, y: 60, s: 1.6, color: '#8E99C2', cls: 'b' },
+  { x: 220, y: 38, s: 1.2, color: '#6E7CAE', cls: '' },
 ]
 
 const RAIN_LINES = Array.from({ length: 16 }, (_, k) => ({
@@ -106,6 +114,16 @@ watch(() => props.pulse, (isPulsing) => {
             v-for="(r, i) in RAIN_LINES" :key="i" class="rainline" :x1="r.x" y1="52" :x2="r.x - 4" y2="64"
             stroke="#9FB5E8" stroke-width="1.6" stroke-linecap="round" :style="{ animationDelay: `${r.delay}s` }"
           />
+        </template>
+        <template v-else-if="skyCondition === 'cloudy'">
+          <circle cx="292" cy="52" r="15" fill="#FFD36B" opacity=".5" />
+          <g v-for="(c, i) in SOFT_CLOUDS" :key="i" :class="['cloud', c.cls]">
+            <g :transform="`translate(${c.x} ${c.y}) scale(${c.s})`" :fill="c.color">
+              <ellipse cx="0" cy="0" rx="30" ry="11" />
+              <circle cx="-10" cy="-9" r="11" />
+              <circle cx="9" cy="-13" r="14" />
+            </g>
+          </g>
         </template>
         <template v-else>
           <circle
@@ -178,6 +196,10 @@ watch(() => props.pulse, (isPulsing) => {
 
 .sky.sunny {
   background: linear-gradient(180deg, #172e68 0%, #2c509a 60%, #6a7fa8 100%);
+}
+
+.sky.cloudy {
+  background: linear-gradient(180deg, #1b2d55 0%, #324872 60%, #5c6a8c 100%);
 }
 
 .sky.stormy {

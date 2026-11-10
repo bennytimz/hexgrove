@@ -94,7 +94,7 @@ The provider only exists inside Nimiq Pay. Outside it, show "Open Hexgrove in Ni
 
 - Stake state: the staker record for the address (`getStakerByAddress` over public RPC). The app derives the lifecycle step from it on every open.
 - Reward history: transactions to the address, classified as pool payouts. [NimBooks](https://github.com/subimpact/nimbooks) classifies them in `chain.ts`; [Kickback](https://github.com/shrooms08/kickback) reads each pool's payout rhythm.
-- Validators: the Validators API gives the pool list, fees and reliability scores. Cache it for about 10 minutes.
+- Validators: the Validators API gives the pool list, fees and reliability scores. Cache it for about 10 minutes. **Gap, 2026-11-10:** `src/nimiq/validatorsApi.ts`'s `fetchValidatorsDirectory()` does not cache yet — every home-screen load and every stake-sheet open fetches fresh. Not yet a correctness problem at this app's scale; worth adding if it becomes one.
 
 **Reference apps to read first.** [NimJar](https://github.com/nimiq/nimjar) is Nimiq's own staking mini app with a full stake-to-withdraw round trip. Its `public/app.js`, `src/chain.js` and `scripts/` show the calls in use.
 
@@ -146,15 +146,18 @@ When part of a stake stops earning, plots beyond what the active stake supports 
 
 Conditions describe recent reliability. They never promise rewards, and the UI says so.
 
-**Deviation, 2026-11-09: sky from real validator data, not a reliability score.** The table above needs a reliability score from the Validators API, and no such score exists yet (open question 9: `getActiveValidators` on testnet returns `address`, `balance`, `numStakers` and health flags only). Built instead: the user's delegation address is read from their own staker record and looked up in `getActiveValidators`.
+**History, now resolved, 2026-11-09 → 2026-11-10.** Built first without a reliability score (open question 9 was unanswered: `getActiveValidators` on testnet returns `address`, `balance`, `numStakers` and health flags only, no score): the user's delegation address was read from their own staker record and looked up in `getActiveValidators` for a plain active/not-active signal, no Cloudy. 2026-11-10: found and confirmed working the Validators API (the score source the table above was always written for — see the Testnet/mainnet observations below). The table's Sunny/Cloudy/Stormy score cutoffs are now restored on top of the chain-RPC check, additively:
 
 | State | Condition | Label |
 | --- | --- | --- |
-| Sunny | Found in the active list; `retired` false, `inactivityFlag` null, `jailedFrom` null | "Your validator is active" |
-| Stormy | `jailedFrom` set, or `retired` true, or `inactivityFlag` set | Says which, in plain words, e.g. "Your validator is jailed right now" |
-| Dusk | Lookup failed, or the validator isn't found in the list | "Can't check your validator right now" |
+| Stormy | `jailedFrom` set, or `retired` true, or `inactivityFlag` set (chain RPC — always checked first, always wins) | Says which, in plain words, e.g. "Your validator is jailed right now" |
+| Sunny | Chain RPC says healthy, and the Validators API's score is 0.85 or higher (the table's "85", scaled — see below) | "Your validator is reliable" |
+| Cloudy | Chain RPC says healthy, and the score is 0.60 to 0.84 | "Worth a second look" |
+| Stormy | Chain RPC says healthy, but the score is below 0.60 | "Your validator's reliability has dropped" |
+| Sunny | Chain RPC says healthy, but the Validators API is unreachable or has no entry for this validator (additive fallback, unchanged from before 2026-11-10) | "Your validator is active" |
+| Dusk | Chain RPC lookup failed, or the validator isn't found in the active list (regardless of the score) | "Can't check your validator right now" |
 
-No Cloudy state for now, since there is no score to place in the middle. Never call this a "reliability score" anywhere in the app; it is a plain active/not-active signal. See `src/lib/sky.ts`.
+A currently jailed, retired or inactive validator is always Stormy with the specific reason, even with a good score — the chain-RPC check is never overridden by the score, only extended by it. Never call this a "reliability score" anywhere in the app. See `src/lib/sky.ts` and `src/nimiq/validatorsApi.ts`.
 
 **Recommended tag (a hint only).** A pool gets it when it is sunny, charges 6% or less, pays rewards directly to the wallet, and holds under 10% of the network. Publish these criteria in the app. Several pools can carry the tag.
 
@@ -313,7 +316,7 @@ Type uses a rounded system stack (ui-rounded, SF Pro Rounded, Nunito, Avenir Nex
 
 ## Open questions to verify on testnet
 
-Ten things are still unconfirmed, and the first four change screens, so settle them before building the staking flow. Where a question can be answered by testing, test it with two different amounts. Two questions are already answered, below the table.
+Nine things are still unconfirmed, and the first four change screens, so settle them before building the staking flow. Where a question can be answered by testing, test it with two different amounts. Three questions are already answered, below the table.
 
 **Question 12 is UNVERIFIED on mainnet and blocks nothing else, but must be confirmed before the competition submission**, since judges will likely use Nimiq Pay on mainnet (everything else in this app has only ever been run and confirmed on testnet).
 
@@ -326,7 +329,6 @@ Ten things are still unconfirmed, and the first four change screens, so settle t
 | 6 | Does switching validators require stopping earning first? | The switch flow copy | arpl describes deactivating as the step for moving to another validator; confirm on testnet |
 | 7 | How do you tell pool payouts from ordinary incoming transfers? | A misclassified transfer would inflate plant growth and break the honesty rule | `chain.ts` in [NimBooks](https://github.com/subimpact/nimbooks); the payout files in Kickback |
 | 8 | Do direct-payout pools and the 12-hour payout cadence exist on testnet? | Reward reading may only be testable on mainnet with a small stake | Testnet validator list; NimJar ran steps on mainnet |
-| 9 | What do real reliability scores look like across pools? | The sunny, cloudy and stormy cutoffs | Validators API data — found via NimJar's `src/server.js`, 2026-11-10: a separate hosted service, not the chain RPC's `getActiveValidators` this app currently uses. `https://validators-api-main.je-cf9.workers.dev` (mainnet) / `https://validators-api-test.je-cf9.workers.dev` (testnet). Shape unconfirmed — not yet fetched or used by this app |
 | 10 | Exact submission cutoff time, promotion checklist items, and how later submissions count for real usage | Scoring and planning | miniappscompetition.com rules and the community forum |
 | 12 | Does the mainnet RPC (`rpc.nimiqwatch.com`) actually work from this app — reachable, CORS-permitting, and returning correct data for `getBalance`, `getStakerByAddress`, `getPolicyConstants`, `getActiveValidators`? Is the mainnet minimum stake also 100 NIM? | Everything built and confirmed so far was run only on testnet; judges will likely use Nimiq Pay on mainnet | A real phone, Nimiq Pay set to mainnet, an account with no stake. See README, "Testing on mainnet" |
 
@@ -336,6 +338,7 @@ Ten things are still unconfirmed, and the first four change screens, so settle t
 | --- | --- | --- |
 | 4 | What is the real minimum stake, 100 NIM or 1000 NIM? | 100 NIM. Confirmed on testnet, 2026-11-09: `getPolicyConstants` reports `minimumStake: 10000000` Luna (100 NIM). A 50 NIM Create Staker transaction never confirmed and expired after about 2 hours; a 100 NIM Create Staker transaction confirmed within minutes |
 | 11 | Does Nimiq Pay accept plain http custom URLs, or only HTTPS? | Yes. Confirmed on an iPhone, Nimiq Pay testnet, 2026-11-09: a plain `http://` LAN Custom URL (`npm run dev -- --host`) loaded Hexgrove inside Nimiq Pay. `listAccounts`, `getBalance` and `getHostNetwork` also confirmed working against testnet in the same session |
+| 9 | What do real reliability scores look like across pools? | Found and confirmed, 2026-11-10 — Nimiq's own validator directory (the Validators API; the same one NimJar uses, found via its `src/server.js`, not guessed). `GET {base}/api/v1/validators`, no auth: `https://validators-api-main.je-cf9.workers.dev/api/v1/validators` (mainnet, 21 entries) and `https://validators-api-test.je-cf9.workers.dev/api/v1/validators` (testnet, 13 entries), both confirmed with a real browser `fetch()` from an arbitrary `http://localhost` origin — the read succeeding at all confirms CORS allows it (a blocked cross-origin read rejects the `fetch()` promise outright, it doesn't partially succeed), though the exact deployed `hexgrove.vercel.app` origin hasn't been separately confirmed. Response: a JSON array, one object per validator, with (at least) `id`, `name`, `address`, `description`, `fee` (fraction, e.g. `0.05` = 5%, null for 1 of 21 mainnet entries seen), `payoutType` (`"restake"`, `"direct"`, or `"none"` — "none" was seen on mainnet, meaning stake there earns nothing at all, confirming NimJar's own warning), `payoutSchedule`, `isMaintainedByNimiq`, `accentColor`, `website`, `isListed`, `hasDefaultLogo`, `logo` (a large base64 data URI — ignore it), `dominanceRatio` (fraction of total network stake), `balance`, `stakers`, and `score` (an object, not a bare number): `{ scoreVersion, total, availability, recentAvailability, longTermAvailability, dominance, reliability, epochNumber, scoreEpoch, dataStatus, recentCoverage, longTermCoverage, longTermAsOfEpoch }`. `score.total` is the single composite reliability figure (0-1, not 0-100 as the original table assumed — see Validator conditions above), 0 nulls seen in either sample fetched. This app only uses `address`, `fee`, `payoutType`, `dominanceRatio` and `score.total` — see `src/nimiq/validatorsApi.ts` |
 
 **Testnet observations, 2026-11-09**
 
@@ -367,6 +370,7 @@ Recorded as seen, not as verified. None of these answer a numbered question abov
 - Declining an approval in Nimiq Pay was confirmed, 2026-11-10, on a real phone (testnet): lands correctly on the "No problem" outcome.
 - Probe log, 2026-11-10: swiping the Nimiq Pay approval sheet away without answering, mid-`sendStakeTransaction`, returned `NimiqProviderError` type `INTERNAL_ERROR`, code -32603, message `[birpc] timeout on calling "handleRequest"`. Nothing was confirmed. Treated as "no answer from Nimiq Pay" (mapped to the "Timed out" outcome above), not as declined, since the same error could also mean Nimiq Pay never replied after an approval was shown — not necessarily that the user dismissed it. The cause of the earlier "Operation timed out after 30000 milliseconds" message (above) remains unconfirmed; these are two distinct observed messages, both mapped to the same outcome because neither cause is confirmed.
 - Mainnet readiness audit, 2026-11-10: until this date, every `setRPCUrl` call in the real app (not the probe) was hardcoded to the testnet RPC regardless of `getHostNetwork()`'s result — found in `HomeScreen.vue` and four places in `StakeSheet.vue`. Fixed: both now pick the RPC via the new `rpcUrlForNetwork()` (`src/nimiq/provider.ts`), which reads `getHostNetwork()` and falls back to testnet when unknown — provably no behavior change on testnet, since `getHostNetwork()` already returns `'testnet'` there (confirmed earlier, and in the mock). The mainnet RPC itself, `https://rpc.nimiqwatch.com`, is NimJar's `src/server.js` default (same source already used for the testnet URL) — confirmed via NimJar's repository, not guessed. It has not been reached from this app. Nimiq's own Provider API reference (nimiq.dev/mini-apps) confirms the general requirement: `setRPCUrl`'s URL must match "Nimiq Pay's active network." See Open question 12.
+- Validators API confirmed, 2026-11-10 — full response shape, both networks, recorded against open question 9 (now answered, above) rather than duplicated here. Used additively in `src/components/HomeScreen.vue` (sky) and `src/components/StakeSheet.vue` (validator chooser: fee, reliability, pool size, a Recommended tag per the spec's criteria): when the API is unreachable or has no entry for a given validator, both fall back to exactly their pre-2026-11-10 chain-RPC-only behavior, unchanged.
 
 ## Test plan
 

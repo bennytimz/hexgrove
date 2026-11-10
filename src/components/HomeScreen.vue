@@ -14,6 +14,7 @@ import { computeWateringState, waterToday } from '../lib/watering'
 import { formatWaitRemaining } from '../lib/waiting'
 import { getHostNetwork, getProvider, NimiqProviderError, resetProvider, rpcUrlForNetwork } from '../nimiq/provider'
 import { readCombinedStaker } from '../nimiq/staker'
+import { fetchValidatorsDirectory } from '../nimiq/validatorsApi'
 import { playChime, WATERING_CHIME } from '../sound/chime'
 
 const MUTED_STORAGE_KEY = 'hexgrove.muted'
@@ -167,10 +168,14 @@ async function retryAccounts() {
 }
 
 /**
- * Sky from the user's own delegation validator via getActiveValidators —
- * a deviation from the spec's score-based table, recorded in
- * docs/SPEC.md. Dusk covers both "no delegation yet" and "lookup failed
- * or validator not found", never Stormy just because data is missing.
+ * Sky from the user's own delegation validator: getActiveValidators for
+ * active/jailed/retired (chain RPC, authoritative), plus the Validators
+ * API's reliability score when it's reachable and has this validator,
+ * restoring the spec's Sunny/Cloudy/Stormy score table on top — additive;
+ * falls back to the plain active/not-active signal otherwise (see
+ * src/lib/sky.ts, docs/SPEC.md open question 9). Dusk covers both "no
+ * delegation yet" and "lookup failed or validator not found", never
+ * Stormy just because data is missing.
  */
 async function loadSky(nimiq: NimiqProvider, delegation: string | null) {
   if (!delegation) {
@@ -181,13 +186,17 @@ async function loadSky(nimiq: NimiqProvider, delegation: string | null) {
   }
 
   try {
-    const validators = await nimiq.request<unknown>({ method: 'getActiveValidators' })
+    const [validators, directory] = await Promise.all([
+      nimiq.request<unknown>({ method: 'getActiveValidators' }),
+      fetchValidatorsDirectory(network.value),
+    ])
     const match = Array.isArray(validators)
       ? validators.find((v): v is { address: string, retired?: boolean, inactivityFlag?: unknown, jailedFrom?: unknown } =>
           !!v && typeof v === 'object' && typeof (v as { address?: unknown }).address === 'string'
           && compactAddress((v as { address: string }).address) === compactAddress(delegation))
       : undefined
-    const state = computeSkyState(match ?? null)
+    const directoryEntry = directory.find(d => compactAddress(d.address) === compactAddress(delegation))
+    const state = computeSkyState(match ?? null, directoryEntry?.scoreTotal ?? null)
     skyCondition.value = state.condition
     skyLabel.value = state.label
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compactAddress, computeSkyState, isValidatorHealthy } from './sky'
+import { compactAddress, computeSkyState, isValidatorHealthy, SCORE_CLOUDY_THRESHOLD, SCORE_SUNNY_THRESHOLD } from './sky'
 
 describe('computeSkyState', () => {
   it('is Dusk with no reliability-score wording when the validator is null (lookup failed or not found)', () => {
@@ -32,7 +32,7 @@ describe('computeSkyState', () => {
     expect(state.label.toLowerCase()).toContain('inactive')
   })
 
-  it('never produces a Cloudy state', () => {
+  it('never produces a Cloudy state without a score (the Validators API unreachable or no entry) — falls back to plain active/not-active', () => {
     const inputs: Array<Parameters<typeof computeSkyState>[0]> = [
       null,
       { retired: false, inactivityFlag: null, jailedFrom: null },
@@ -43,6 +43,36 @@ describe('computeSkyState', () => {
     for (const input of inputs) {
       expect(computeSkyState(input).condition).not.toBe('cloudy')
     }
+  })
+
+  describe('with a Validators API score', () => {
+    const healthy = { retired: false, inactivityFlag: null, jailedFrom: null }
+
+    it('is Sunny at or above the sunny threshold', () => {
+      expect(computeSkyState(healthy, SCORE_SUNNY_THRESHOLD).condition).toBe('sunny')
+      expect(computeSkyState(healthy, 1).condition).toBe('sunny')
+    })
+
+    it('is Cloudy between the cloudy and sunny thresholds', () => {
+      expect(computeSkyState(healthy, SCORE_CLOUDY_THRESHOLD).condition).toBe('cloudy')
+      expect(computeSkyState(healthy, (SCORE_SUNNY_THRESHOLD + SCORE_CLOUDY_THRESHOLD) / 2).condition).toBe('cloudy')
+    })
+
+    it('is Stormy below the cloudy threshold', () => {
+      expect(computeSkyState(healthy, SCORE_CLOUDY_THRESHOLD - 0.01).condition).toBe('stormy')
+      expect(computeSkyState(healthy, 0).condition).toBe('stormy')
+    })
+
+    it('still overrides to Stormy with the specific reason when jailed, retired or inactive, regardless of a high score', () => {
+      const perfectScore = 1
+      expect(computeSkyState({ retired: false, inactivityFlag: null, jailedFrom: 1 }, perfectScore).label.toLowerCase()).toContain('jailed')
+      expect(computeSkyState({ retired: true, inactivityFlag: null, jailedFrom: null }, perfectScore).label.toLowerCase()).toContain('retired')
+      expect(computeSkyState({ retired: false, inactivityFlag: 1, jailedFrom: null }, perfectScore).label.toLowerCase()).toContain('inactive')
+    })
+
+    it('ignores the score when the validator lookup itself failed (still Dusk, not Cloudy)', () => {
+      expect(computeSkyState(null, 1).condition).toBe('dusk')
+    })
   })
 })
 

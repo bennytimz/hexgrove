@@ -61,6 +61,8 @@ Opening the same URL in a regular desktop browser (outside Nimiq Pay) should sho
 
 From the home screen, **Stake** (no stake yet) or **Add stake** (already staked) opens a sheet with an amount field and, for a new stake, a validator chooser. Approve the transaction in Nimiq Pay when prompted; the sheet polls the chain and updates the garden once the stake shows.
 
+The validator chooser shows each pool's fee, reliability score and share of the network when Nimiq's Validators API (`src/nimiq/validatorsApi.ts`) is reachable, with a **Recommended** tag for pools that meet the spec's criteria, and marks which one was auto-selected as the default. This is additive: if that API is unreachable, the chooser falls back to the chain's plain active/not-active signal, exactly as before.
+
 Testnet NIM has no value — get some from a testnet faucet first if your wallet is empty. The minimum to create a new staker is read live from the chain (confirmed as 100 NIM on testnet); adding to an existing staker has no separate minimum.
 
 ## Testing on mainnet (read paths only)
@@ -129,7 +131,9 @@ Via [`@nimiq/mini-app-sdk`](https://www.npmjs.com/package/@nimiq/mini-app-sdk) (
 - `nimiq.sendStakeTransaction({ value })` — adds to an existing staker. **Confirmed on testnet** with a 100 NIM add.
 - `nimiq.request({ method: 'getStakerByAddress', params: [address] })` — reads a staker's active, waiting and released balances. **Confirmed on testnet.**
 - `nimiq.request({ method: 'getPolicyConstants' })` — the live minimum stake (never hardcoded). **Confirmed on testnet:** `minimumStake: 10000000` Luna (100 NIM).
-- `nimiq.request({ method: 'getActiveValidators' })` — the validator chooser's list and the home screen's sky condition.
+- `nimiq.request({ method: 'getActiveValidators' })` — the validator chooser's list and the home screen's sky condition (active/jailed/retired; always checked first, always wins).
+
+Also, not part of the SDK: Nimiq's own Validators API (`src/nimiq/validatorsApi.ts`), fee/reliability/pool-size data layered additively on top of the above. **Confirmed reachable on both networks, 2026-11-10** — see `docs/SPEC.md`, open question 9.
 
 All Luna/NIM conversions (`src/lib/luna.ts`) use `BigInt`, never floats.
 

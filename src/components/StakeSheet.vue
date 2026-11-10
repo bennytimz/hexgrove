@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import type { TxOutcome } from '../lib/txOutcome'
 import type { NimiqProvider } from '../nimiq/provider'
+import type { ValidatorDirectoryEntry } from '../nimiq/validatorsApi'
 import { computed, onMounted, ref } from 'vue'
 import { formatNim, nimToLuna } from '../lib/luna'
-import { isValidatorHealthy } from '../lib/sky'
+import { compactAddress, isValidatorHealthy } from '../lib/sky'
 import { classifyStakeRecheck, classifyTxError, TX_OUTCOME_COPY } from '../lib/txOutcome'
 import { getHostNetwork, getProvider, rpcUrlForNetwork } from '../nimiq/provider'
 import { readCombinedStaker } from '../nimiq/staker'
+import { fetchValidatorsDirectory, isRecommendedValidator } from '../nimiq/validatorsApi'
 
 const props = defineProps<{
   addresses: string[]
@@ -31,10 +33,17 @@ interface ValidatorOption {
   address: string
   numStakers: number
   healthy: boolean
+  /** From the Validators API (src/nimiq/validatorsApi.ts) — null when it's unreachable or has no entry for this validator. Additive: the chooser works the same without it. */
+  feeFraction: number | null
+  scoreTotal: number | null
+  dominanceRatio: number | null
+  recommended: boolean
 }
 
 const validators = ref<ValidatorOption[]>([])
 const selectedValidator = ref('')
+/** The validator pickDefaultValidator() chose when the sheet opened — kept even after the user picks a different one, so the list can still mark which one was the default. */
+const defaultValidatorAddress = ref('')
 
 const amountInput = ref('')
 const amountError = ref('')
@@ -59,6 +68,27 @@ function shortAddr(address: string): string {
   return `${parts[0]} ${parts[1]} … ${parts[parts.length - 1]}`
 }
 
+function pluralStakers(n: number): string {
+  return `${n} staker${n === 1 ? '' : 's'}`
+}
+
+/** 0.0523 → "5.2%". Used for fee, reliability and network-size figures, all fractions from the Validators API. */
+function formatFraction(fraction: number): string {
+  return `${(fraction * 100).toFixed(fraction < 0.01 ? 1 : 0)}%`
+}
+
+/** The optional second line under a validator's Active/Not active status, when the Validators API has data for it. */
+function validatorMetaLine(v: ValidatorOption): string {
+  const parts: string[] = []
+  if (v.feeFraction !== null)
+    parts.push(`${formatFraction(v.feeFraction)} fee`)
+  if (v.scoreTotal !== null)
+    parts.push(`${formatFraction(v.scoreTotal)} reliability`)
+  if (v.dominanceRatio !== null)
+    parts.push(`${formatFraction(v.dominanceRatio)} of network`)
+  return parts.join(' · ')
+}
+
 function parseValidators(raw: unknown): ValidatorOption[] {
   if (!Array.isArray(raw))
     return []
@@ -70,10 +100,36 @@ function parseValidators(raw: unknown): ValidatorOption[] {
         address: v.address,
         numStakers: typeof v.numStakers === 'number' ? v.numStakers : 0,
         healthy: isValidatorHealthy(v),
+        feeFraction: null,
+        scoreTotal: null,
+        dominanceRatio: null,
+        recommended: false,
       })
     }
   }
   return out
+}
+
+/**
+ * Layers the Validators API's fee, reliability score and pool size onto the
+ * chain-RPC validator list, by address. Purely additive: a validator with
+ * no matching directory entry (the API failed, or just doesn't list it)
+ * keeps its chain-only fields untouched, exactly as before this existed.
+ */
+function mergeDirectory(chainValidators: ValidatorOption[], directory: ValidatorDirectoryEntry[]): ValidatorOption[] {
+  const byAddress = new Map(directory.map(d => [compactAddress(d.address), d]))
+  return chainValidators.map((v) => {
+    const entry = byAddress.get(compactAddress(v.address))
+    if (!entry)
+      return v
+    return {
+      ...v,
+      feeFraction: entry.feeFraction,
+      scoreTotal: entry.scoreTotal,
+      dominanceRatio: entry.dominanceRatio,
+      recommended: isRecommendedValidator(entry),
+    }
+  })
 }
 
 function pickDefaultValidator(list: ValidatorOption[]): string {
@@ -104,17 +160,19 @@ async function loadForm() {
       return
     }
 
-    const [policy, rawValidators] = await Promise.all([
+    const [policy, rawValidators, directory] = await Promise.all([
       policyPromise,
       nimiq.request<unknown>({ method: 'getActiveValidators' }),
+      fetchValidatorsDirectory(getHostNetwork()),
     ])
     minimumLuna.value = typeof policy?.minimumStake === 'number' ? BigInt(policy.minimumStake) : null
-    validators.value = parseValidators(rawValidators)
+    validators.value = mergeDirectory(parseValidators(rawValidators), directory)
     if (!validators.value.length) {
       loadError.value = true
       return
     }
     selectedValidator.value = pickDefaultValidator(validators.value)
+    defaultValidatorAddress.value = selectedValidator.value
     phase.value = 'form'
   }
   catch (error) {
@@ -149,6 +207,25 @@ const canSubmit = computed(() => {
       return false
   }
   return true
+})
+
+/** Why the Stake/Add button is disabled, shown under it — so it's never disabled with no explanation. Empty once canSubmit is true. */
+const disabledHint = computed(() => {
+  if (phase.value !== 'form' || canSubmit.value)
+    return ''
+  const value = amountLuna.value
+  if (!amountInput.value.trim() || value === null || value <= 0n) {
+    return !props.hasStaker && minimumLuna.value !== null
+      ? `Enter at least ${formatNim(minimumLuna.value)} NIM.`
+      : 'Enter an amount.'
+  }
+  if (value > BigInt(Math.trunc(props.spendableLuna)))
+    return 'That\'s more than your spendable balance.'
+  if (!props.hasStaker && minimumLuna.value !== null && value < minimumLuna.value)
+    return `Enter at least ${formatNim(minimumLuna.value)} NIM.`
+  if (!props.hasStaker && !selectedValidator.value)
+    return 'Choose a validator.'
+  return ''
 })
 
 function validate(): boolean {
@@ -364,8 +441,16 @@ const locked = computed(() => phase.value === 'sending' || phase.value === 'conf
                 class="validator-row" type="button" role="radio" :aria-checked="selectedValidator === v.address"
                 :class="{ selected: selectedValidator === v.address }" @click="selectedValidator = v.address"
               >
-                <span class="vaddr">{{ shortAddr(v.address) }}</span>
-                <span class="vstatus" :class="{ unhealthy: !v.healthy }">{{ v.healthy ? 'Active' : 'Not active' }} · {{ v.numStakers }} stakers</span>
+                <span class="vradio" aria-hidden="true" />
+                <span class="vmain">
+                  <span class="vaddr-row">
+                    <span class="vaddr">{{ shortAddr(v.address) }}</span>
+                    <span v-if="v.address === defaultValidatorAddress" class="vtag">Default</span>
+                    <span v-if="v.recommended" class="vtag vtag-recommended">Recommended</span>
+                  </span>
+                  <span class="vstatus" :class="{ unhealthy: !v.healthy }">{{ v.healthy ? 'Active' : 'Not active' }} · {{ pluralStakers(v.numStakers) }}</span>
+                  <span v-if="validatorMetaLine(v)" class="vmeta">{{ validatorMetaLine(v) }}</span>
+                </span>
               </button>
             </li>
           </ul>
@@ -378,6 +463,9 @@ const locked = computed(() => phase.value === 'sending' || phase.value === 'conf
         <button class="btn-primary" type="button" :disabled="!canSubmit" @click="onSubmit">
           {{ hasStaker ? `Add ${amountInput || '0'} NIM` : `Stake ${amountInput || '0'} NIM` }}
         </button>
+        <p v-if="disabledHint" class="hint">
+          {{ disabledHint }}
+        </p>
       </template>
 
       <template v-else-if="phase === 'sending'">
@@ -542,14 +630,14 @@ const locked = computed(() => phase.value === 'sending' || phase.value === 'conf
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 180px;
+  max-height: 260px;
   overflow-y: auto;
 }
 
 .validator-row {
   width: 100%;
   min-height: 48px;
-  padding: 8px 14px;
+  padding: 10px 14px;
   border-radius: 12px;
   border: 1.5px solid var(--line);
   background: transparent;
@@ -557,17 +645,62 @@ const locked = computed(() => phase.value === 'sending' || phase.value === 'conf
   text-align: left;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .validator-row.selected {
   border-color: var(--gold);
 }
 
+.vradio {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 1.5px solid var(--edge);
+  box-sizing: border-box;
+}
+
+.validator-row.selected .vradio {
+  border-color: var(--gold);
+  border-width: 5px;
+}
+
+.vmain {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vaddr-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .vaddr {
   font-weight: 700;
   font-size: 14px;
+}
+
+.vtag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  color: var(--mist);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+}
+
+.vtag-recommended {
+  border-color: var(--gold);
+  color: var(--gold-soft);
 }
 
 .vstatus {
@@ -577,6 +710,11 @@ const locked = computed(() => phase.value === 'sending' || phase.value === 'conf
 
 .vstatus.unhealthy {
   color: #ff9dc0;
+}
+
+.vmeta {
+  font-size: 12.5px;
+  color: var(--mist);
 }
 
 .btn-primary {

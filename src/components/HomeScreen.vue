@@ -2,6 +2,7 @@
 import type { NimiqProvider } from '../nimiq/provider'
 import type { PlantData } from '../lib/plants'
 import type { SkyCondition } from '../lib/sky'
+import type { WaitingPhase } from '../lib/waiting'
 import type { StoredWatering } from '../lib/watering'
 import { computed, onMounted, ref } from 'vue'
 import HexGarden from './HexGarden.vue'
@@ -47,7 +48,7 @@ const spendableUnsupported = ref(false)
 const earningLuna = ref<bigint>(0n)
 const waitingLuna = ref<bigint>(0n)
 /** The waiting countdown's current phase and copy — see src/lib/waiting.ts, docs/SPEC.md "Unstaking timing" (DOCUMENTED, NOT YET VERIFIED ON CHAIN). */
-const waitingPhase = ref<'beforeInactive' | 'locked' | null>(null)
+const waitingPhase = ref<WaitingPhase | null>(null)
 const waitingText = ref('')
 const waitingCaveat = ref('')
 const releasedLuna = ref<bigint>(0n)
@@ -275,7 +276,11 @@ async function loadCombined() {
     if (staker.waitingLuna > 0n && staker.latestInactiveFrom !== null) {
       const state = describeWaitingState(blockNumber, staker.latestInactiveFrom, policy.blocksPerEpoch)
       waitingPhase.value = state.phase
-      waitingText.value = state.text
+      // The amount isn't known inside describeWaitingState (it only reasons about
+      // block numbers) — composed here instead, for the one phase that names it.
+      waitingText.value = state.phase === 'ready'
+        ? `Your ${formatNim(staker.waitingLuna)} NIM can move back to your wallet. This takes two approvals.`
+        : state.text
       waitingCaveat.value = state.caveat ?? ''
     }
     else {
@@ -503,7 +508,7 @@ onMounted(connect)
             <b>{{ formatNim(earningLuna) }} NIM</b>
           </div>
           <div v-if="waitingLuna > 0n" class="stat">
-            <small>Waiting</small>
+            <small>{{ waitingPhase === 'ready' ? 'Ready to withdraw' : 'Waiting' }}</small>
             <b>{{ formatNim(waitingLuna) }} NIM</b>
             <span class="hint">{{ waitingText }}</span>
             <span v-if="waitingCaveat" class="hint">{{ waitingCaveat }}</span>
@@ -511,6 +516,7 @@ onMounted(connect)
           <div v-if="releasedLuna > 0n" class="stat">
             <small>Released</small>
             <b>{{ formatNim(releasedLuna) }} NIM</b>
+            <span class="hint">Almost done. Your first approval went through. One more approval moves your {{ formatNim(releasedLuna) }} NIM to your wallet.</span>
           </div>
           <p class="hint">
             {{ stakeHolders.length > 1 ? 'Held across' : 'Held by' }} {{ stakeHolders.map(shortAddr).join(', ') }}

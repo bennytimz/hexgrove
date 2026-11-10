@@ -53,9 +53,16 @@ describe('describeWaitingState', () => {
     expect(state.text).not.toMatch(/\d/)
   })
 
-  it('does not throw once the release block has passed, and still never says Ready', () => {
+  it('is "ready" once the release block has passed, with plain wording and no "release block" jargon', () => {
     const state = describeWaitingState(1_100_000, 1_000_000, 43_200)
-    expect(state.phase).toBe('locked')
-    expect(state.text.toLowerCase()).not.toContain('ready')
+    expect(state.phase).toBe('ready')
+    expect(state.text.toLowerCase()).not.toContain('release block')
+    expect(state.text.toLowerCase()).not.toContain('passed')
+    expect(state.caveat).toBeUndefined()
+  })
+
+  it('"ready" exactly at the release block too, not only once past it', () => {
+    const state = describeWaitingState(1_043_200, 1_000_000, 43_200)
+    expect(state.phase).toBe('ready')
   })
 })

@@ -143,11 +143,11 @@ function validate(): boolean {
   return true
 }
 
-/** "This can take about 12 to 24 hours" — derived live from blocksPerEpoch, never hardcoded (docs/SPEC.md, "Unstaking timing"). */
+/** "This can take about 12 to 24 hours" — derived live from blocksPerEpoch, never hardcoded (docs/SPEC.md, "Unstaking timing"). No file paths or internal jargon in the text itself: it's shown to the user as-is. */
 const waitExplanation = computed(() => {
   if (blocksPerEpoch.value === null)
-    return 'This can take about 12 to 24 hours, depending on timing. Unverified — see docs/SPEC.md.'
-  return `This can take about ${aboutDuration(blocksPerEpoch.value)} to ${aboutDuration(blocksPerEpoch.value * 2)}, depending on timing. Unverified — see docs/SPEC.md.`
+    return 'This can take about 12 to 24 hours, depending on timing. This estimate hasn\'t been confirmed yet.'
+  return `This can take about ${aboutDuration(blocksPerEpoch.value)} to ${aboutDuration(blocksPerEpoch.value * 2)}, depending on timing. This estimate hasn't been confirmed yet.`
 })
 
 async function pollForConfirmation(nimiq: NimiqProvider) {

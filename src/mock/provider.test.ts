@@ -205,12 +205,16 @@ describe('installMockProvider', () => {
       expect(describeWaitingState(MOCK_BLOCK_NUMBER, staker.inactiveFrom, MOCK_BLOCKS_PER_EPOCH).phase).toBe('beforeInactive')
     })
 
-    it('"ready": the release block has passed — describeWaitingState says locked, but it\'s actually withdrawable', async () => {
+    it('"ready": the release block has passed — describeWaitingState says "ready", with no "release block" jargon', async () => {
       installMockProvider(null, false, 'ready')
       const nimiq = win.nimiq as any
       const staker = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[2]] })
       expect(staker.inactiveBalance).toBeGreaterThan(0)
       expect(releaseBlock(staker.inactiveFrom, MOCK_BLOCKS_PER_EPOCH)).toBeLessThanOrEqual(MOCK_BLOCK_NUMBER)
+
+      const state = describeWaitingState(MOCK_BLOCK_NUMBER, staker.inactiveFrom, MOCK_BLOCKS_PER_EPOCH)
+      expect(state.phase).toBe('ready')
+      expect(state.text.toLowerCase()).not.toContain('release block')
     })
 
     it('"stuck": already retired, nothing inactive — the resume-withdraw case', async () => {

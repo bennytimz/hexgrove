@@ -6,11 +6,12 @@
  * locked for one further epoch (`blocksPerEpoch`, read live, never
  * hardcoded) counted from `inactiveFrom`.
  *
- * Never says "Ready": once the release block has passed, the caller shows
- * Withdraw instead of this text, not a continuation of this countdown.
+ * Never names the "release block" to the user — the two user-facing phases
+ * are a plain time estimate ('locked') and a plain "it's ready now"
+ * statement ('ready'), once the release block has passed.
  */
 
-export type WaitingPhase = 'beforeInactive' | 'locked'
+export type WaitingPhase = 'beforeInactive' | 'locked' | 'ready'
 
 export interface WaitingState {
   phase: WaitingPhase
@@ -51,7 +52,7 @@ export function describeWaitingState(blockNumber: number, inactiveFrom: number, 
   }
   const blocksRemaining = releaseBlock(inactiveFrom, blocksPerEpoch) - blockNumber
   if (blocksRemaining <= 0) {
-    return { phase: 'locked', text: 'Locked until the release block, now passed', caveat: JAIL_CAVEAT }
+    return { phase: 'ready', text: 'Can move back to your wallet. This takes two approvals.' }
   }
   return { phase: 'locked', text: `Locked until about ${aboutDuration(blocksRemaining)} from now`, caveat: JAIL_CAVEAT }
 }

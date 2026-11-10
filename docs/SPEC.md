@@ -179,13 +179,21 @@ flowchart TD
 
 Stopping part of a stake leaves the rest earning, so Earning and Waiting can exist at the same time. Reactivating undoes a stop while that amount is still waiting. If the second withdraw approval fails, the stake stays Released and the app offers Finish withdrawing.
 
+**Unstaking timing — DOCUMENTED, NOT YET VERIFIED ON CHAIN.** Source: [nimiq.dev/protocol/validators/stakers](https://nimiq.dev/protocol/validators/stakers) (`nimiq.com developer docs, protocol/validators/stakers`), read and independently re-fetched for exact wording 2026-11-10. This answers open question 3's shape, but none of it has been confirmed against real chain behavior yet — built against it, but treat every number and rule below as unconfirmed until tested on testnet.
+
+- **State Transitions:** "Transactions to activate, inactivate, and update stakes only take effect at the next election block." `inactiveFrom` on the staker record is that election block.
+- **State Transitions:** "Stakers must wait through the reporting window or the remaining jail period of the validator, whichever is longer, to inactivate their funds. The inactive balance can only be released after the lock-up period or the validator's jail period has passed." The reporting window is one epoch (`blocksPerEpoch` from `getPolicyConstants`, read live — confirmed 43,200 blocks / about 12 hours on testnet, 2026-11-09, see Testnet observations below — never hardcoded). This app computes **release block = `inactiveFrom` + `blocksPerEpoch`** as the base-case estimate and says it can take longer if the validator is jailed, without computing the jail period itself (not read anywhere in this app yet).
+- **Transactions, Retire Stake:** "A staker can either retire all the non-retired stake or leave at least the minimum stake in the non-retired balance; otherwise, the transaction fails." **Invariants:** "Active + inactive balances must be equal to or greater than the minimum stake if the non-retired balance is not zero."
+- **Transactions, Remove Stake:** "The transaction must remove the entire retired balance; partial removals are not allowed."
+- **Edge Cases:** "When a staker updates their inactive stake, the reporting window counter resets."
+
 **Rules**
 
 - Quick amounts for stopping are 25%, 50%, 75% and 100% of the earning amount, and users can type any amount.
-- After a partial stop, either at least the minimum stake keeps earning or the whole stake stops. The sample minimum is 100 NIM, pending open question 4.
+- Stops are conservative, built against the documented-not-verified timing above: only allow a stop that leaves the active balance at 0 or at least the minimum stake (100 NIM, confirmed — open question 4, answered). A stop that would leave something in between risks a chain rejection, which can block the wallet from sending anything else for up to 2 hours — never offer it, and say this is conservative and unverified.
 - Plots follow the earning stake. Plots it no longer supports go dormant (greyed out), not deleted.
-- Every transaction in this lifecycle uses the five outcomes in Errors and copy.
-- Offer only Withdraw once the wait is over until open question 2 confirms whether reactivating is still possible.
+- Every transaction in this lifecycle uses the seven outcomes in Errors and copy, plus "Almost done" specifically for withdraw step 2 failing after step 1 already succeeded.
+- Offer only Withdraw once the release block has passed (see above) until open question 2 confirms whether reactivating is still possible.
 
 ## Screens and states
 
@@ -316,21 +324,22 @@ Type uses a rounded system stack (ui-rounded, SF Pro Rounded, Nunito, Avenir Nex
 
 ## Open questions to verify on testnet
 
-Nine things are still unconfirmed, and the first four change screens, so settle them before building the staking flow. Where a question can be answered by testing, test it with two different amounts. Three questions are already answered, below the table.
+Ten things are still unconfirmed, and the first four change screens, so settle them before building the staking flow. Where a question can be answered by testing, test it with two different amounts. Three questions are already answered, below the table.
 
-**Question 12 is UNVERIFIED on mainnet and blocks nothing else, but must be confirmed before the competition submission**, since judges will likely use Nimiq Pay on mainnet (everything else in this app has only ever been run and confirmed on testnet).
+**Question 12 is UNVERIFIED on mainnet and blocks nothing else, but must be confirmed before the competition submission**, since judges will likely use Nimiq Pay on mainnet (everything else in this app has only ever been run and confirmed on testnet). **Question 13 blocks nothing else either, but Stop earning and Withdraw must not be called "done" until it's confirmed.**
 
 | # | Question | Why it matters | Where to look |
 | --- | --- | --- | --- |
 | 1 | Do the provider's staking calls accept an amount, so users can stop earning on part of a stake? | The partial stop-earning design depends on it | Provider API reference on nimiq.dev/mini-apps; `public/app.js` in [NimJar](https://github.com/nimiq/nimjar); `src/services/nimiq.ts` in [Kickback](https://github.com/shrooms08/kickback). Node tooling ([arpl](https://github.com/sisou/arpl)) takes an optional amount, which is a good sign |
 | 2 | Can a stake be reactivated after the wait is over? | Decides whether Ready to withdraw offers only Withdraw | Staking contract in [core-rs-albatross](https://github.com/nimiq/core-rs-albatross); testnet |
-| 3 | How long is the unstaking wait, and can the remaining time be read from chain data? | The countdown on Your stake. [Nimiq's staking page](https://www.nimiq.com/staking/) says 12 hours to 4 days | Staker record on testnet |
+| 3 | How long is the unstaking wait, and can the remaining time be read from chain data? | The countdown on Your stake. [Nimiq's staking page](https://www.nimiq.com/staking/) says 12 hours to 4 days | **DOCUMENTED, NOT YET VERIFIED ON CHAIN, 2026-11-10:** nimiq.com developer docs (protocol/validators/stakers) describe release block = `inactiveFrom` + `blocksPerEpoch`, read live — see Staking lifecycle, "Unstaking timing". Still needs confirming against a real wait on testnet |
 | 5 | Does withdrawing take exactly two approvals (retire, then remove)? | The Step 1 of 2 and Step 2 of 2 screens | NimJar scripts; testnet |
 | 6 | Does switching validators require stopping earning first? | The switch flow copy | arpl describes deactivating as the step for moving to another validator; confirm on testnet |
 | 7 | How do you tell pool payouts from ordinary incoming transfers? | A misclassified transfer would inflate plant growth and break the honesty rule | `chain.ts` in [NimBooks](https://github.com/subimpact/nimbooks); the payout files in Kickback |
 | 8 | Do direct-payout pools and the 12-hour payout cadence exist on testnet? | Reward reading may only be testable on mainnet with a small stake | Testnet validator list; NimJar ran steps on mainnet |
 | 10 | Exact submission cutoff time, promotion checklist items, and how later submissions count for real usage | Scoring and planning | miniappscompetition.com rules and the community forum |
 | 12 | Does the mainnet RPC (`rpc.nimiqwatch.com`) actually work from this app — reachable, CORS-permitting, and returning correct data for `getBalance`, `getStakerByAddress`, `getPolicyConstants`, `getActiveValidators`? Is the mainnet minimum stake also 100 NIM? | Everything built and confirmed so far was run only on testnet; judges will likely use Nimiq Pay on mainnet | A real phone, Nimiq Pay set to mainnet, an account with no stake. See README, "Testing on mainnet" |
+| 13 | **UNVERIFIED, built 2026-11-10 against documented-not-chain-tested behavior:** does `sendSetActiveStakeTransaction` actually take effect at the next election block? Is the release block really `inactiveFrom` + `blocksPerEpoch`? Does `sendRetireStakeTransaction` really require the full inactive balance or at least the minimum left behind? Does `sendRemoveStakeTransaction` really reject a partial amount? | `StopEarningSheet.vue` and `WithdrawSheet.vue` (the whole stop-earning and withdraw flow) are built entirely on [nimiq.dev/protocol/validators/stakers](https://nimiq.dev/protocol/validators/stakers)'s documented behavior, never exercised against a real unstaking wait | A real phone, testnet, a stake small enough to not mind losing track of for ~12+ hours. Stop earning on part of it, wait for the release block, then withdraw both steps |
 
 **Answered**
 
@@ -426,7 +435,7 @@ Build the risky parts first: the Nimiq connection and the staking flow carry 70 
 
 1. **Scaffold and connect.** Create the Vue 3 and Vite project and open it in Nimiq Pay on testnet. Gate: it shows your testnet account and balance.
 2. **Settle the open questions.** Answer questions 1 to 6 on testnet and update this spec. Gate: written answers for the amount-based stop, reactivation, wait time, minimum stake, withdraw approvals and switching.
-3. **Staking flow.** Validators, amount, approval states, Your stake, partial stop earning, withdraw. Gate: the full lifecycle in the test matrix passes with no dead ends. **Partial progress, 2026-11-09:** create-staker and add-stake are built (`StakeSheet.vue`), covering all seven outcomes in Errors and copy. Stop earning and withdraw are not yet built — the unstake wait time (open question 5/6) is still being measured on testnet, so this step's gate isn't fully met yet.
+3. **Staking flow.** Validators, amount, approval states, Your stake, partial stop earning, withdraw. Gate: the full lifecycle in the test matrix passes with no dead ends. **Progress, 2026-11-09 → 2026-11-10:** create-staker and add-stake are built (`StakeSheet.vue`), covering all seven outcomes in Errors and copy. Stop earning (`StopEarningSheet.vue`) and withdraw (`WithdrawSheet.vue`) are now also built, against the documented-not-yet-verified timing above — **stop earning is conservative by design** (only allows leaving 0 or the minimum stake active) and **withdraw is UNVERIFIED**: neither has been exercised against a real unstaking wait on testnet yet. This step's gate isn't met until that happens.
 4. **Garden from real data.** Plots, growth stages, species and validator conditions, derived from chain data. Gate: reward reading is verified against the payout rules.
 5. **Watering and backend.** Streak, unlocks, and local-first sync keyed to the wallet. Gate: a second device shows the same garden and streak.
 6. **Remaining screens.** Intro, Collection, Progress, share card, sound.

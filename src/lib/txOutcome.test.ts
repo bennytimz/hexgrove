@@ -1,6 +1,6 @@
 import { NimiqProviderError } from '@nimiq/mini-app-sdk'
 import { describe, expect, it } from 'vitest'
-import { classifyStakeRecheck, classifyTxError, TX_OUTCOME_COPY } from './txOutcome'
+import { ALMOST_DONE_COPY, classifyStakeRecheck, classifyTxError, TX_OUTCOME_COPY } from './txOutcome'
 
 describe('classifyTxError', () => {
   it('classifies a declined request', () => {
@@ -53,6 +53,33 @@ describe('TX_OUTCOME_COPY', () => {
     const lower = message.toLowerCase()
     expect(lower).not.toMatch(/\d+\s*(second|ms|millisecond)/) // no "30 seconds" / "30000ms" claims
     expect(lower).not.toContain('hear back') // the earlier, now-disproven assumption
+  })
+})
+
+describe('ALMOST_DONE_COPY', () => {
+  it('has fixed copy for every outcome, sentence case, no raw error text, every title "Almost done"', () => {
+    for (const outcome of Object.values(ALMOST_DONE_COPY)) {
+      expect(outcome.title).toBe('Almost done')
+      expect(outcome.message.length).toBeGreaterThan(0)
+      expect(outcome.message).not.toMatch(/-\d{4,5}/) // no raw RPC codes
+      expect(outcome.message).not.toContain('—')
+    }
+  })
+
+  it('every message reassures the NIM is safe — step 1 already succeeded', () => {
+    for (const outcome of Object.values(ALMOST_DONE_COPY)) {
+      expect(outcome.message.toLowerCase()).toMatch(/safe|released/)
+    }
+  })
+
+  it('matches docs/SPEC.md\'s canonical "Withdraw step 2 fails" wording for the generic case', () => {
+    expect(ALMOST_DONE_COPY.notSent.message).toBe('Your stake is released, but the withdrawal didn\'t go through. Your NIM is safe. Finish when you\'re ready.')
+  })
+
+  it('keeps maybeSent\'s "check before retrying, don\'t send twice" guidance, reframed for withdraw', () => {
+    const { message } = ALMOST_DONE_COPY.maybeSent
+    expect(message.toLowerCase()).toContain('history')
+    expect(message.toLowerCase()).toMatch(/twice/)
   })
 })
 

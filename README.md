@@ -8,7 +8,7 @@ See [`docs/SPEC.md`](docs/SPEC.md) for the full product spec and [`docs/hexgrove
 
 ## Status
 
-Connect screen, read-only home screen (combined stake across every account, garden of hex plots, watering, sound, sky from the validator you're delegated to), and the real staking flow: create a staker or add to one from the **Stake** / **Add stake** buttons. Stop earning and withdraw aren't built yet — the unstake wait time is still being measured on testnet.
+Connect screen, read-only home screen (combined stake across every account, garden of hex plots, watering, sound, sky from the validator you're delegated to), and the real staking flow: create a staker or add to one from the **Stake** / **Add stake** buttons, confirmed on testnet. **Stop earning** and **Withdraw** are also built, but **UNVERIFIED** — against nimiq.dev's documented (not yet chain-tested) unstaking rules, never exercised against a real unstaking wait. See `docs/SPEC.md`, "Unstaking timing" and open question 13.
 
 Confirmed working on a real phone (iPhone, Nimiq Pay, testnet, 2026-11-09): the plain-http LAN Custom URL, `listAccounts`, `getBalance`, and `getHostNetwork`. The staking flow (`sendNewStakerTransaction`, `sendStakeTransaction`, and the error outcomes) is built against confirmed testnet behavior (see `docs/SPEC.md`) but not yet re-confirmed live in Nimiq Pay on a phone.
 
@@ -65,6 +65,16 @@ The validator chooser shows each pool's fee, reliability score and share of the 
 
 Testnet NIM has no value — get some from a testnet faucet first if your wallet is empty. The minimum to create a new staker is read live from the chain (confirmed as 100 NIM on testnet); adding to an existing staker has no separate minimum.
 
+## Stop earning and withdraw (UNVERIFIED)
+
+Built against [nimiq.dev/protocol/validators/stakers](https://nimiq.dev/protocol/validators/stakers)'s documented rules, not yet confirmed on testnet — see `docs/SPEC.md`, "Unstaking timing" and open question 13.
+
+**Stop earning**, from the "Stop earning" button on an earning stake: pick 25/50/75/100% or type an amount. Deliberately conservative — it only allows leaving the active balance at 0 or at least the minimum stake (never an in-between amount), since `sendSetActiveStakeTransaction` takes an absolute target and the documented rules say an invalid target can get rejected in a way that blocks the wallet from sending anything else for up to 2 hours.
+
+**Withdraw**, from the "Withdraw" button (shown once the release block has documented-but-unconfirmed passed) or "Finish withdrawing" (shown if a previous attempt's second step didn't complete): two sequential Nimiq Pay approvals, `sendRetireStakeTransaction` then `sendRemoveStakeTransaction` with the entire retired balance, never both at once. Reopening the sheet always re-reads the chain fresh, so it resumes correctly even if you close it mid-way.
+
+To actually verify this on testnet: stop earning on a small amount, wait for the documented release block (inactiveFrom + blocksPerEpoch — about 12 hours on testnet, read live, never hardcoded), then withdraw both steps. Report back whether the timing matched, and whether both approvals went through as expected.
+
 ## Testing on mainnet (read paths only)
 
 Mainnet is UNVERIFIED (see Status above). This checks the read paths only — **don't approve any transaction yet**, since create-staker and add-stake have never been tried against the mainnet RPC, and a real approval spends real NIM and fees.
@@ -107,7 +117,18 @@ Example: `http://localhost:5173/?mock=1&fail=declined`
 
 Add `&nostake=1` to make every mock address report no staker, so the create-staker flow is reachable (the default mock dataset is pre-staked, so only the add-stake flow is reachable without it). Combine freely, e.g. `http://localhost:5173/?mock=1&nostake=1&fail=stakeDeclined` tests declining a create-staker approval.
 
-The mock's staker records are stateful: a successful `sendNewStakerTransaction` or `sendStakeTransaction` call updates what a later `getStakerByAddress` reports, so the stake sheet's post-send confirmation poll and the garden update behave the same way they would against a real node.
+The mock's staker records are stateful: a successful `sendNewStakerTransaction`, `sendStakeTransaction`, `sendSetActiveStakeTransaction`, `sendRetireStakeTransaction` or `sendRemoveStakeTransaction` call updates what a later `getStakerByAddress` reports, so each sheet's post-send confirmation poll and the garden update behave the same way they would against a real node. The `&fail=stake...` modes above apply to all five of these calls, not just create/add.
+
+Add `&wait=` to pick which phase the waiting balance is in, for testing the two-phase countdown and the Withdraw entry point:
+
+| `wait` value | Simulates |
+| --- | --- |
+| `before` | `inactiveFrom` is still in the future — the "Starts at the next epoch" phase |
+| `locked` (default) | `inactiveFrom` has passed, but the release block hasn't — "Locked until about 12 hours from now" |
+| `ready` | The release block has passed — the **Withdraw** button appears |
+| `stuck` | Already retired, nothing inactive — the **Finish withdrawing** resume case |
+
+Example: `http://localhost:5173/?mock=1&wait=ready`, then tap **Withdraw** to walk through both approvals.
 
 ## Test
 
@@ -130,8 +151,11 @@ Via [`@nimiq/mini-app-sdk`](https://www.npmjs.com/package/@nimiq/mini-app-sdk) (
 - `nimiq.sendNewStakerTransaction({ delegation, value })` — creates a staker. **Confirmed on testnet.**
 - `nimiq.sendStakeTransaction({ value })` — adds to an existing staker. **Confirmed on testnet** with a 100 NIM add.
 - `nimiq.request({ method: 'getStakerByAddress', params: [address] })` — reads a staker's active, waiting and released balances. **Confirmed on testnet.**
-- `nimiq.request({ method: 'getPolicyConstants' })` — the live minimum stake (never hardcoded). **Confirmed on testnet:** `minimumStake: 10000000` Luna (100 NIM).
+- `nimiq.request({ method: 'getPolicyConstants' })` — the live minimum stake and epoch length (never hardcoded). **Confirmed on testnet:** `minimumStake: 10000000` Luna (100 NIM), `blocksPerEpoch: 43200` (about 12 hours).
 - `nimiq.request({ method: 'getActiveValidators' })` — the validator chooser's list and the home screen's sky condition (active/jailed/retired; always checked first, always wins).
+- `nimiq.sendSetActiveStakeTransaction({ newActiveBalance })` — stop earning, as an absolute target. **UNVERIFIED** — see "Stop earning and withdraw" above.
+- `nimiq.sendRetireStakeTransaction({ retireStake })` — withdraw step 1. **UNVERIFIED.**
+- `nimiq.sendRemoveStakeTransaction({ value })` — withdraw step 2, the entire retired balance. **UNVERIFIED.**
 
 Also, not part of the SDK: Nimiq's own Validators API (`src/nimiq/validatorsApi.ts`), fee/reliability/pool-size data layered additively on top of the above. **Confirmed reachable via curl and a desktop browser on both networks, 2026-11-10, but not yet confirmed working from inside Nimiq Pay itself** — see `docs/SPEC.md`, open question 9 and the mainnet observations.
 
@@ -139,7 +163,7 @@ All Luna/NIM conversions (`src/lib/luna.ts`) use `BigInt`, never floats.
 
 ## Roadmap
 
-- ~~Create-staker and add-stake~~ — built. Partial stop earning and withdraw are next, once the unstake wait time is confirmed on testnet.
+- ~~Create-staker and add-stake~~ — built, confirmed on testnet. ~~Stop earning and withdraw~~ — built, but UNVERIFIED: next is confirming the documented unstaking timing against a real wait on testnet.
 - ~~The garden: plots, growth stages, species, and validator-driven sky, derived from chain data~~ — built.
 - ~~Watering and streaks~~ — built (local only; a small backend to sync across devices, keyed to the wallet address, is not built yet).
 - Collection, Progress, and the share card.

@@ -68,6 +68,40 @@ export function classifyTxError(error: unknown): TxOutcome {
   return 'notSent'
 }
 
+/**
+ * Withdraw step 2 (sendRemoveStakeTransaction) failing after step 1
+ * (sendRetireStakeTransaction) already succeeded — docs/SPEC.md's
+ * "Withdraw step 2 fails" outcome. Same six classifications and the same
+ * chain-recheck gating as TX_OUTCOME_COPY (maybeSent, timedOut), reframed:
+ * the NIM is already retired and safe, only the last step didn't land.
+ */
+export const ALMOST_DONE_COPY: Record<TxOutcome, TxOutcomeCopy> = {
+  declined: {
+    title: 'Almost done',
+    message: 'Your stake is released, but you declined the last step. Your NIM is safe. Finish when you\'re ready.',
+  },
+  notSent: {
+    title: 'Almost done',
+    message: 'Your stake is released, but the withdrawal didn\'t go through. Your NIM is safe. Finish when you\'re ready.',
+  },
+  networkDown: {
+    title: 'Almost done',
+    message: 'Your stake is released, but we couldn\'t reach the network. Your NIM is safe. Finish when you\'re ready.',
+  },
+  maybeSent: {
+    title: 'Almost done',
+    message: 'Your stake is released. The last step may or may not have gone through. Check your Nimiq Pay history before trying again, so you don\'t send it twice.',
+  },
+  blocked: {
+    title: 'Almost done',
+    message: 'Your stake is released. Nimiq Pay is still finishing your last request. Wait a moment, then finish withdrawing.',
+  },
+  timedOut: {
+    title: 'Almost done',
+    message: 'Your stake is released, but Nimiq Pay didn\'t answer. We\'ll check before you try again.',
+  },
+}
+
 export type StakeRecheckResult = 'confirmed' | 'unchanged' | 'checkFailed'
 
 /**

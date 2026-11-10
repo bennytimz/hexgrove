@@ -6,13 +6,16 @@ import type { StoredWatering } from '../lib/watering'
 import { computed, onMounted, ref } from 'vue'
 import HexGarden from './HexGarden.vue'
 import StakeSheet from './StakeSheet.vue'
+import StopEarningSheet from './StopEarningSheet.vue'
+import WithdrawSheet from './WithdrawSheet.vue'
 import { formatNim } from '../lib/luna'
 import { PREVIEW_PLANTS } from '../lib/plants'
 import { nextTier, plotsForStake } from '../lib/plots'
 import { compactAddress, computeSkyState } from '../lib/sky'
 import { computeWateringState, waterToday } from '../lib/watering'
-import { formatWaitRemaining } from '../lib/waiting'
+import { describeWaitingState, releaseBlock } from '../lib/waiting'
 import { getHostNetwork, getProvider, NimiqProviderError, resetProvider, rpcUrlForNetwork } from '../nimiq/provider'
+import { readPolicyConstants } from '../nimiq/policy'
 import { readCombinedStaker } from '../nimiq/staker'
 import { fetchValidatorsDirectory } from '../nimiq/validatorsApi'
 import { playChime, WATERING_CHIME } from '../sound/chime'
@@ -43,11 +46,25 @@ const spendableLuna = ref(0)
 const spendableUnsupported = ref(false)
 const earningLuna = ref<bigint>(0n)
 const waitingLuna = ref<bigint>(0n)
-const waitingReadyText = ref('')
+/** The waiting countdown's current phase and copy — see src/lib/waiting.ts, docs/SPEC.md "Unstaking timing" (DOCUMENTED, NOT YET VERIFIED ON CHAIN). */
+const waitingPhase = ref<'beforeInactive' | 'locked' | null>(null)
+const waitingText = ref('')
+const waitingCaveat = ref('')
 const releasedLuna = ref<bigint>(0n)
 const stakeHolders = ref<string[]>([])
 const delegationAddress = ref<string | null>(null)
 const stakeSheetMode = ref<'create' | 'add' | null>(null)
+const stopEarningSheetOpen = ref(false)
+const withdrawSheetOpen = ref(false)
+const latestInactiveFrom = ref<number | null>(null)
+const blocksPerEpoch = ref<number | null>(null)
+const currentBlockNumber = ref<number | null>(null)
+/** Past the release block, with funds still waiting — Withdraw becomes reachable. UNVERIFIED, see docs/SPEC.md. */
+const readyToWithdraw = computed(() => {
+  if (waitingLuna.value <= 0n || latestInactiveFrom.value === null || blocksPerEpoch.value === null || currentBlockNumber.value === null)
+    return false
+  return currentBlockNumber.value >= releaseBlock(latestInactiveFrom.value, blocksPerEpoch.value)
+})
 
 const initialSky = computeSkyState(null)
 const skyCondition = ref<SkyCondition>(initialSky.condition)
@@ -238,9 +255,10 @@ async function loadCombined() {
       spendableLuna.value = 0
     }
 
-    const [blockNumber, staker] = await Promise.all([
+    const [blockNumber, staker, policy] = await Promise.all([
       nimiq.getBlockNumber(),
       readCombinedStaker(nimiq, accounts.value),
+      readPolicyConstants(nimiq),
     ])
 
     earningLuna.value = staker.earningLuna
@@ -248,12 +266,23 @@ async function loadCombined() {
     releasedLuna.value = staker.releasedLuna
     stakeHolders.value = staker.holders
     delegationAddress.value = staker.delegation
+    latestInactiveFrom.value = staker.latestInactiveFrom
+    blocksPerEpoch.value = policy.blocksPerEpoch
+    currentBlockNumber.value = blockNumber
 
     await loadSky(nimiq, staker.delegation)
 
-    waitingReadyText.value = staker.waitingLuna > 0n && staker.latestInactiveFrom !== null
-      ? formatWaitRemaining(staker.latestInactiveFrom - blockNumber)
-      : ''
+    if (staker.waitingLuna > 0n && staker.latestInactiveFrom !== null) {
+      const state = describeWaitingState(blockNumber, staker.latestInactiveFrom, policy.blocksPerEpoch)
+      waitingPhase.value = state.phase
+      waitingText.value = state.text
+      waitingCaveat.value = state.caveat ?? ''
+    }
+    else {
+      waitingPhase.value = null
+      waitingText.value = ''
+      waitingCaveat.value = ''
+    }
 
     const previousRaw = sessionStorage.getItem(SPENDABLE_STORAGE_KEY)
     const previousSpendable = previousRaw !== null ? Number(previousRaw) : null
@@ -286,6 +315,16 @@ async function loadCombined() {
 
 function onStaked() {
   stakeSheetMode.value = null
+  loadCombined()
+}
+
+function onStopped() {
+  stopEarningSheetOpen.value = false
+  loadCombined()
+}
+
+function onWithdrawn() {
+  withdrawSheetOpen.value = false
   loadCombined()
 }
 
@@ -466,7 +505,8 @@ onMounted(connect)
           <div v-if="waitingLuna > 0n" class="stat">
             <small>Waiting</small>
             <b>{{ formatNim(waitingLuna) }} NIM</b>
-            <span class="hint">{{ waitingReadyText }}</span>
+            <span class="hint">{{ waitingText }}</span>
+            <span v-if="waitingCaveat" class="hint">{{ waitingCaveat }}</span>
           </div>
           <div v-if="releasedLuna > 0n" class="stat">
             <small>Released</small>
@@ -485,6 +525,12 @@ onMounted(connect)
           <p class="hint">Watering is just for fun. It never changes your rewards.</p>
           <button class="btn-ghost" type="button" @click="stakeSheetMode = 'add'">
             Add stake
+          </button>
+          <button v-if="earningLuna > 0n" class="btn-ghost" type="button" @click="stopEarningSheetOpen = true">
+            Stop earning
+          </button>
+          <button v-if="readyToWithdraw || releasedLuna > 0n" class="btn-ghost" type="button" @click="withdrawSheetOpen = true">
+            {{ releasedLuna > 0n ? 'Finish withdrawing' : 'Withdraw' }}
           </button>
         </template>
 
@@ -514,6 +560,19 @@ onMounted(connect)
       :spendable-luna="spendableLuna"
       @close="stakeSheetMode = null"
       @staked="onStaked"
+    />
+    <StopEarningSheet
+      v-if="stopEarningSheetOpen"
+      :addresses="accounts"
+      :earning-luna="earningLuna"
+      @close="stopEarningSheetOpen = false"
+      @stopped="onStopped"
+    />
+    <WithdrawSheet
+      v-if="withdrawSheetOpen"
+      :addresses="accounts"
+      @close="withdrawSheetOpen = false"
+      @withdrawn="onWithdrawn"
     />
   </main>
 </template>

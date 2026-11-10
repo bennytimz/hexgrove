@@ -39,15 +39,31 @@ export const MOCK_VALIDATOR_ADDRESS_2 = 'NQ58 MOCK VALD 0000 0000 0000 0000 0000
 export const MOCK_VALIDATOR_ADDRESS_3 = 'NQ81 MOCK VALD 0000 0000 0000 0000 0000 0003'
 
 export const MOCK_BLOCK_NUMBER = 1_000_000
-/** Inactive balance for MOCK_ADDRESSES[2]: 50 NIM, released about an hour from MOCK_BLOCK_NUMBER (1 block ~ 1 second). */
+/** Inactive balance for MOCK_ADDRESSES[2] in the default ("locked") wait scenario: 50 NIM. */
 export const MOCK_WAITING_INACTIVE_LUNA = 5_000_000
-export const MOCK_WAITING_INACTIVE_FROM = MOCK_BLOCK_NUMBER + 3600
 
 /** Just past provider.ts's default 10s init() timeout, so the first connect fails. */
 export const MOCK_TIMEOUT_DELAY_MS = 11_000
 
 /** getPolicyConstants().minimumStake, confirmed on testnet, 2026-11-09: 10,000,000 Luna = 100 NIM. */
 export const MOCK_MINIMUM_STAKE_LUNA = 10_000_000
+/** getPolicyConstants().blocksPerEpoch, confirmed on testnet, 2026-11-09: 43,200 blocks (about 12 hours). */
+export const MOCK_BLOCKS_PER_EPOCH = 43_200
+
+/**
+ * `?mock=1&wait=` picks which phase MOCK_ADDRESSES[2]'s wait is in, so the
+ * two-phase countdown (src/lib/waiting.ts) and the Withdraw entry point are
+ * both independently testable:
+ * - `before` (inactiveFrom in the future): the "Starts at the next epoch" phase.
+ * - `locked` (default): inactiveFrom just passed, release block still ahead — "Locked until about X".
+ * - `ready`: release block (inactiveFrom + blocksPerEpoch) has passed — Withdraw becomes reachable.
+ * - `stuck`: already retired, nothing inactive — the "Finish withdrawing" resume case.
+ */
+export type MockWaitScenario = 'before' | 'locked' | 'ready' | 'stuck'
+const MOCK_WAIT_SCENARIOS: readonly MockWaitScenario[] = ['before', 'locked', 'ready', 'stuck']
+export function isMockWaitScenario(value: string | null): value is MockWaitScenario {
+  return value !== null && (MOCK_WAIT_SCENARIOS as readonly string[]).includes(value)
+}
 
 /**
  * Mock Validators API data (src/nimiq/validatorsApi.ts), shaped like the
@@ -76,11 +92,34 @@ interface MockStakerRecord {
 }
 
 /**
+ * MOCK_ADDRESSES[2]'s record for each `&wait=` scenario — see
+ * MockWaitScenario above. Block numbers are chosen relative to
+ * MOCK_BLOCK_NUMBER and MOCK_BLOCKS_PER_EPOCH so each one lands cleanly in
+ * its intended phase of src/lib/waiting.ts's describeWaitingState().
+ */
+function waitingAddressRecord(scenario: MockWaitScenario): MockStakerRecord {
+  switch (scenario) {
+    case 'before':
+      return { balance: 0, delegation: null, inactiveBalance: MOCK_WAITING_INACTIVE_LUNA, inactiveFrom: MOCK_BLOCK_NUMBER + 3600, retiredBalance: 0 }
+    case 'ready':
+      // release block = inactiveFrom + blocksPerEpoch, well before MOCK_BLOCK_NUMBER.
+      return { balance: 0, delegation: null, inactiveBalance: MOCK_WAITING_INACTIVE_LUNA, inactiveFrom: MOCK_BLOCK_NUMBER - 50_000, retiredBalance: 0 }
+    case 'stuck':
+      // Already retired, nothing inactive — step 1 done, step 2 never finished.
+      return { balance: 0, delegation: null, inactiveBalance: 0, inactiveFrom: null, retiredBalance: MOCK_WAITING_INACTIVE_LUNA }
+    case 'locked':
+    default:
+      // inactiveFrom just passed; release block (+blocksPerEpoch) is still ahead.
+      return { balance: 0, delegation: null, inactiveBalance: MOCK_WAITING_INACTIVE_LUNA, inactiveFrom: MOCK_BLOCK_NUMBER - 1000, retiredBalance: 0 }
+  }
+}
+
+/**
  * `?mock=1&nostake=1` forces every mock address to report no staker, so the
  * create-staker flow (normally unreachable since MOCK_ADDRESSES[0] is
  * pre-staked) can be exercised. Independent of `fail`/`&fail=`.
  */
-function initialStakerState(noStake: boolean): Record<string, MockStakerRecord | null> {
+function initialStakerState(noStake: boolean, waitScenario: MockWaitScenario): Record<string, MockStakerRecord | null> {
   if (noStake) {
     return {
       [MOCK_ADDRESSES[0]]: null,
@@ -97,13 +136,7 @@ function initialStakerState(noStake: boolean): Record<string, MockStakerRecord |
       retiredBalance: 0,
     },
     [MOCK_ADDRESSES[1]]: null,
-    [MOCK_ADDRESSES[2]]: {
-      balance: 0,
-      delegation: null,
-      inactiveBalance: MOCK_WAITING_INACTIVE_LUNA,
-      inactiveFrom: MOCK_WAITING_INACTIVE_FROM,
-      retiredBalance: 0,
-    },
+    [MOCK_ADDRESSES[2]]: waitingAddressRecord(waitScenario),
   }
 }
 
@@ -145,9 +178,9 @@ function throwStakeFailure(failMode: MockFailMode): void {
  * class with a private field, which a plain mock object can never satisfy;
  * the cast happens once, at the point this gets assigned to window.nimiq.
  */
-export function createMockProvider(failMode: MockFailMode, noStake = false) {
+export function createMockProvider(failMode: MockFailMode, noStake = false, waitScenario: MockWaitScenario = 'locked') {
   let consensusCalls = 0
-  const stakerState = initialStakerState(noStake)
+  const stakerState = initialStakerState(noStake, waitScenario)
 
   const provider = {
     async listAccounts(): Promise<string[]> {
@@ -212,10 +245,72 @@ export function createMockProvider(failMode: MockFailMode, noStake = false) {
       }
       return 'mock-tx-hash-add-stake'
     },
-    sendSetActiveStakeTransaction: notImplemented('sendSetActiveStakeTransaction'),
+    /**
+     * Stop earning, applied to MOCK_ADDRESSES[0] (the earning address).
+     * newActiveBalance is an absolute target, not a delta: the difference
+     * moves from active to inactive, effective immediately in the mock
+     * (inactiveFrom = "now") — the real documented behavior takes effect
+     * at the next election block (docs/SPEC.md, "Unstaking timing"),
+     * simplified here since the mock has no real block production.
+     */
+    async sendSetActiveStakeTransaction({ newActiveBalance }: { newActiveBalance: number }): Promise<string> {
+      throwStakeFailure(failMode)
+      const existing = stakerState[MOCK_ADDRESSES[0]]
+      const currentActive = existing?.balance ?? 0
+      const stopped = Math.max(0, currentActive - newActiveBalance)
+      stakerState[MOCK_ADDRESSES[0]] = {
+        balance: newActiveBalance,
+        delegation: existing?.delegation ?? MOCK_VALIDATOR_ADDRESS,
+        inactiveBalance: (existing?.inactiveBalance ?? 0) + stopped,
+        inactiveFrom: stopped > 0 ? MOCK_BLOCK_NUMBER : (existing?.inactiveFrom ?? null),
+        retiredBalance: existing?.retiredBalance ?? 0,
+      }
+      return 'mock-tx-hash-set-active-stake'
+    },
     sendUpdateStakerTransaction: notImplemented('sendUpdateStakerTransaction'),
-    sendRetireStakeTransaction: notImplemented('sendRetireStakeTransaction'),
-    sendRemoveStakeTransaction: notImplemented('sendRemoveStakeTransaction'),
+    /**
+     * Withdraw step 1 — moves retireStake Luna from inactive to retired, on
+     * whichever mock address actually has an inactive balance (MOCK_ADDRESSES[2]
+     * by default, or MOCK_ADDRESSES[0] after a mock stop-earning call), the
+     * same way Nimiq Pay picks the right account internally without an
+     * address parameter. Falls back to MOCK_ADDRESSES[2] if none do.
+     */
+    async sendRetireStakeTransaction({ retireStake }: { retireStake: number }): Promise<string> {
+      throwStakeFailure(failMode)
+      const addr = MOCK_ADDRESSES.find(a => (stakerState[a]?.inactiveBalance ?? 0) > 0) ?? MOCK_ADDRESSES[2]
+      const existing = stakerState[addr]
+      const inactive = existing?.inactiveBalance ?? 0
+      const moved = Math.min(inactive, retireStake)
+      stakerState[addr] = {
+        balance: existing?.balance ?? 0,
+        delegation: existing?.delegation ?? null,
+        inactiveBalance: inactive - moved,
+        inactiveFrom: existing?.inactiveFrom ?? null,
+        retiredBalance: (existing?.retiredBalance ?? 0) + moved,
+      }
+      return 'mock-tx-hash-retire-stake'
+    },
+    /**
+     * Withdraw step 2 — removes the entire retired balance from whichever
+     * mock address actually has one (same address-picking as step 1).
+     * Doesn't credit MOCK_BALANCES_LUNA's spendable figure back (that
+     * object is a fixed readonly snapshot); only the staker record
+     * changes, which is what the withdraw flow itself reads.
+     */
+    async sendRemoveStakeTransaction({ value }: { value: number }): Promise<string> {
+      throwStakeFailure(failMode)
+      const addr = MOCK_ADDRESSES.find(a => (stakerState[a]?.retiredBalance ?? 0) > 0) ?? MOCK_ADDRESSES[2]
+      const existing = stakerState[addr]
+      const retired = existing?.retiredBalance ?? 0
+      stakerState[addr] = {
+        balance: existing?.balance ?? 0,
+        delegation: existing?.delegation ?? null,
+        inactiveBalance: existing?.inactiveBalance ?? 0,
+        inactiveFrom: existing?.inactiveFrom ?? null,
+        retiredBalance: Math.max(0, retired - value),
+      }
+      return 'mock-tx-hash-remove-stake'
+    },
     async request<T>(args: { method: string, params?: unknown[] | object }): Promise<T> {
       if (args.method === 'getStakerByAddress') {
         const address = Array.isArray(args.params) ? args.params[0] : undefined
@@ -234,7 +329,7 @@ export function createMockProvider(failMode: MockFailMode, noStake = false) {
         ] as T
       }
       if (args.method === 'getPolicyConstants') {
-        return { minimumStake: MOCK_MINIMUM_STAKE_LUNA } as T
+        return { minimumStake: MOCK_MINIMUM_STAKE_LUNA, blocksPerEpoch: MOCK_BLOCKS_PER_EPOCH } as T
       }
       return notImplemented('request')()
     },
@@ -276,7 +371,7 @@ function installMockFetch(): void {
   }
 }
 
-export function installMockProvider(failMode: MockFailMode, noStake = false): void {
+export function installMockProvider(failMode: MockFailMode, noStake = false, waitScenario: MockWaitScenario = 'locked'): void {
   // A plain mock object can never satisfy window.nimiq's declared type (a
   // class with a private field), so the escape hatch is local to this file.
   const win = window as unknown as { nimiq?: unknown, nimiqPay?: unknown }
@@ -291,12 +386,12 @@ export function installMockProvider(failMode: MockFailMode, noStake = false): vo
   if (failMode === 'timeout') {
     console.info(`[mock] Simulating a slow provider: window.nimiq appears after ${MOCK_TIMEOUT_DELAY_MS}ms.`)
     setTimeout(() => {
-      win.nimiq = createMockProvider(failMode, noStake)
+      win.nimiq = createMockProvider(failMode, noStake, waitScenario)
       win.nimiqPay = mockHostContext()
     }, MOCK_TIMEOUT_DELAY_MS)
     return
   }
 
-  win.nimiq = createMockProvider(failMode, noStake)
+  win.nimiq = createMockProvider(failMode, noStake, waitScenario)
   win.nimiqPay = mockHostContext()
 }

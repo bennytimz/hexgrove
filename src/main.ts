@@ -35,8 +35,13 @@ async function bootstrap() {
 
       window.__HEXGROVE_MOCK__ = true
       const noStake = params.get('nostake') === '1'
-      const { installMockProvider } = await import('./mock/provider')
-      installMockProvider(fail as Parameters<typeof installMockProvider>[0], noStake)
+      const { installMockProvider, isMockWaitScenario } = await import('./mock/provider')
+      const requestedWait = params.get('wait')
+      if (requestedWait && !isMockWaitScenario(requestedWait)) {
+        console.warn(`[mock] Unknown wait scenario "${requestedWait}". Known: before, locked, ready, stuck.`)
+      }
+      const wait = requestedWait && isMockWaitScenario(requestedWait) ? requestedWait : undefined
+      installMockProvider(fail as Parameters<typeof installMockProvider>[0], noStake, wait)
     }
   }
 

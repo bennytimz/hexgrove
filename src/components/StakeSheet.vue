@@ -7,6 +7,7 @@ import { formatNim, nimToLuna } from '../lib/luna'
 import { compactAddress, isValidatorHealthy } from '../lib/sky'
 import { classifyStakeRecheck, classifyTxError, TX_OUTCOME_COPY } from '../lib/txOutcome'
 import { getHostNetwork, getProvider, rpcUrlForNetwork } from '../nimiq/provider'
+import { readPolicyConstants } from '../nimiq/policy'
 import { readCombinedStaker } from '../nimiq/staker'
 import { fetchValidatorsDirectory, isRecommendedValidator, pickDefaultValidator, sortValidatorOptions } from '../nimiq/validatorsApi'
 
@@ -130,16 +131,10 @@ async function loadForm() {
     const nimiq = await getProvider()
     nimiq.setRPCUrl(rpcUrlForNetwork(getHostNetwork()))
 
-    const policyPromise = nimiq
-      .request<{ minimumStake?: number }>({ method: 'getPolicyConstants' })
-      .catch((error: unknown) => {
-        console.error('Could not load policy constants:', error)
-        return null
-      })
+    const policyPromise = readPolicyConstants(nimiq)
 
     if (props.hasStaker) {
-      const policy = await policyPromise
-      minimumLuna.value = typeof policy?.minimumStake === 'number' ? BigInt(policy.minimumStake) : null
+      minimumLuna.value = (await policyPromise).minimumStakeLuna
       phase.value = 'form'
       return
     }
@@ -149,7 +144,7 @@ async function loadForm() {
       nimiq.request<unknown>({ method: 'getActiveValidators' }),
       fetchValidatorsDirectory(getHostNetwork()),
     ])
-    minimumLuna.value = typeof policy?.minimumStake === 'number' ? BigInt(policy.minimumStake) : null
+    minimumLuna.value = policy.minimumStakeLuna
     directoryUnavailable.value = directory.length === 0
     const merged = mergeDirectory(parseValidators(rawValidators), directory)
     if (!merged.length) {

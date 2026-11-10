@@ -1,16 +1,18 @@
 import { NimiqProviderError } from '@nimiq/mini-app-sdk'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describeWaitingState, releaseBlock } from '../lib/waiting'
 import { classifyTxError } from '../lib/txOutcome'
 import {
+  isMockWaitScenario,
   installMockProvider,
   MOCK_ADDRESSES,
   MOCK_BLOCK_NUMBER,
+  MOCK_BLOCKS_PER_EPOCH,
   MOCK_MINIMUM_STAKE_LUNA,
   MOCK_TIMEOUT_DELAY_MS,
   MOCK_VALIDATOR_ADDRESS,
   MOCK_VALIDATOR_ADDRESS_2,
   MOCK_VALIDATOR_ADDRESS_3,
-  MOCK_WAITING_INACTIVE_FROM,
   MOCK_WAITING_INACTIVE_LUNA,
 } from './provider'
 
@@ -107,15 +109,17 @@ describe('installMockProvider', () => {
       .rejects.toThrow(/no staker with address/i)
   })
 
-  it('answers request("getStakerByAddress") with a waiting balance for the third mock address', async () => {
+  it('answers request("getStakerByAddress") with a waiting balance for the third mock address, in the "locked" phase by default', async () => {
     installMockProvider(null)
     const nimiq = win.nimiq as any
 
     const staker = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[2]] })
     expect(staker.balance).toBe(0)
     expect(staker.inactiveBalance).toBe(MOCK_WAITING_INACTIVE_LUNA)
-    expect(staker.inactiveFrom).toBe(MOCK_WAITING_INACTIVE_FROM)
-    expect(staker.inactiveFrom).toBeGreaterThan(MOCK_BLOCK_NUMBER)
+    // "locked": inactiveFrom has passed, but the release block (+blocksPerEpoch) hasn't.
+    expect(staker.inactiveFrom).toBeLessThan(MOCK_BLOCK_NUMBER)
+    expect(releaseBlock(staker.inactiveFrom, MOCK_BLOCKS_PER_EPOCH)).toBeGreaterThan(MOCK_BLOCK_NUMBER)
+    expect(describeWaitingState(MOCK_BLOCK_NUMBER, staker.inactiveFrom, MOCK_BLOCKS_PER_EPOCH).phase).toBe('locked')
     await expect(nimiq.getBlockNumber()).resolves.toBe(MOCK_BLOCK_NUMBER)
   })
 
@@ -170,12 +174,52 @@ describe('installMockProvider', () => {
     })
   })
 
-  it('answers getPolicyConstants with the confirmed testnet minimum stake', async () => {
+  it('answers getPolicyConstants with the confirmed testnet minimum stake and blocksPerEpoch', async () => {
     installMockProvider(null)
     const nimiq = win.nimiq as any
 
     const policy = await nimiq.request({ method: 'getPolicyConstants' })
     expect(policy.minimumStake).toBe(MOCK_MINIMUM_STAKE_LUNA)
+    expect(policy.blocksPerEpoch).toBe(MOCK_BLOCKS_PER_EPOCH)
+  })
+
+  describe('isMockWaitScenario', () => {
+    it('accepts exactly the four known scenarios', () => {
+      expect(isMockWaitScenario('before')).toBe(true)
+      expect(isMockWaitScenario('locked')).toBe(true)
+      expect(isMockWaitScenario('ready')).toBe(true)
+      expect(isMockWaitScenario('stuck')).toBe(true)
+    })
+
+    it('rejects anything else, including null', () => {
+      expect(isMockWaitScenario('bogus')).toBe(false)
+      expect(isMockWaitScenario(null)).toBe(false)
+    })
+  })
+
+  describe('wait scenarios', () => {
+    it('"before": inactiveFrom is still in the future — describeWaitingState says beforeInactive', async () => {
+      installMockProvider(null, false, 'before')
+      const nimiq = win.nimiq as any
+      const staker = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[2]] })
+      expect(describeWaitingState(MOCK_BLOCK_NUMBER, staker.inactiveFrom, MOCK_BLOCKS_PER_EPOCH).phase).toBe('beforeInactive')
+    })
+
+    it('"ready": the release block has passed — describeWaitingState says locked, but it\'s actually withdrawable', async () => {
+      installMockProvider(null, false, 'ready')
+      const nimiq = win.nimiq as any
+      const staker = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[2]] })
+      expect(staker.inactiveBalance).toBeGreaterThan(0)
+      expect(releaseBlock(staker.inactiveFrom, MOCK_BLOCKS_PER_EPOCH)).toBeLessThanOrEqual(MOCK_BLOCK_NUMBER)
+    })
+
+    it('"stuck": already retired, nothing inactive — the resume-withdraw case', async () => {
+      installMockProvider(null, false, 'stuck')
+      const nimiq = win.nimiq as any
+      const staker = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[2]] })
+      expect(staker.inactiveBalance).toBe(0)
+      expect(staker.retiredBalance).toBe(MOCK_WAITING_INACTIVE_LUNA)
+    })
   })
 
   describe('nostake', () => {
@@ -216,6 +260,62 @@ describe('installMockProvider', () => {
       expect(after.delegation).toBe(before.delegation)
     })
 
+    it('sendSetActiveStakeTransaction moves the stopped amount from active to inactive, effective immediately in the mock', async () => {
+      installMockProvider(null)
+      const nimiq = win.nimiq as any
+
+      const before = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[0]] })
+      await nimiq.sendSetActiveStakeTransaction({ newActiveBalance: before.balance - 10_000_000 })
+
+      const after = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[0]] })
+      expect(after.balance).toBe(before.balance - 10_000_000)
+      expect(after.inactiveBalance).toBe(before.inactiveBalance + 10_000_000)
+      expect(after.inactiveFrom).toBe(MOCK_BLOCK_NUMBER)
+    })
+
+    it('sendRetireStakeTransaction moves inactive to retired on the waiting address', async () => {
+      installMockProvider(null, false, 'ready')
+      const nimiq = win.nimiq as any
+
+      const before = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[2]] })
+      await nimiq.sendRetireStakeTransaction({ retireStake: before.inactiveBalance })
+
+      const after = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[2]] })
+      expect(after.inactiveBalance).toBe(0)
+      expect(after.retiredBalance).toBe(before.inactiveBalance)
+    })
+
+    it('sendRemoveStakeTransaction clears the retired balance on the waiting address', async () => {
+      installMockProvider(null, false, 'stuck')
+      const nimiq = win.nimiq as any
+
+      const before = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[2]] })
+      expect(before.retiredBalance).toBeGreaterThan(0)
+      await nimiq.sendRemoveStakeTransaction({ value: before.retiredBalance })
+
+      const after = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[2]] })
+      expect(after.retiredBalance).toBe(0)
+    })
+
+    it('the full cycle composes: stop earning, retire, remove, in order', async () => {
+      installMockProvider(null)
+      const nimiq = win.nimiq as any
+
+      const earning = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[0]] })
+      await nimiq.sendSetActiveStakeTransaction({ newActiveBalance: earning.balance - 10_000_000 })
+      const afterStop = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[0]] })
+      expect(afterStop.inactiveBalance).toBe(10_000_000)
+
+      await nimiq.sendRetireStakeTransaction({ retireStake: afterStop.inactiveBalance })
+      const afterRetire = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[0]] })
+      expect(afterRetire.inactiveBalance).toBe(0)
+      expect(afterRetire.retiredBalance).toBe(10_000_000)
+
+      await nimiq.sendRemoveStakeTransaction({ value: afterRetire.retiredBalance })
+      const afterRemove = await nimiq.request({ method: 'getStakerByAddress', params: [MOCK_ADDRESSES[0]] })
+      expect(afterRemove.retiredBalance).toBe(0)
+    })
+
     const stakeFailModes = [
       ['stakeDeclined', 'declined'],
       ['stakeNotSent', 'notSent'],
@@ -226,13 +326,19 @@ describe('installMockProvider', () => {
       ['stakeNoAnswer', 'timedOut'],
     ] as const
 
-    it.each(stakeFailModes)('"%s" makes both staking calls throw an error that classifies as "%s"', async (failMode, expectedOutcome) => {
-      installMockProvider(failMode, true)
+    it.each(stakeFailModes)('"%s" makes every staking call throw an error that classifies as "%s"', async (failMode, expectedOutcome) => {
+      installMockProvider(failMode, true, 'ready')
       const nimiq = win.nimiq as any
 
       await expect(nimiq.sendNewStakerTransaction({ delegation: MOCK_VALIDATOR_ADDRESS, value: 10_000_000 }))
         .rejects.toSatisfy((error: unknown) => classifyTxError(error) === expectedOutcome)
       await expect(nimiq.sendStakeTransaction({ value: 10_000_000 }))
+        .rejects.toSatisfy((error: unknown) => classifyTxError(error) === expectedOutcome)
+      await expect(nimiq.sendSetActiveStakeTransaction({ newActiveBalance: 0 }))
+        .rejects.toSatisfy((error: unknown) => classifyTxError(error) === expectedOutcome)
+      await expect(nimiq.sendRetireStakeTransaction({ retireStake: MOCK_WAITING_INACTIVE_LUNA }))
+        .rejects.toSatisfy((error: unknown) => classifyTxError(error) === expectedOutcome)
+      await expect(nimiq.sendRemoveStakeTransaction({ value: MOCK_WAITING_INACTIVE_LUNA }))
         .rejects.toSatisfy((error: unknown) => classifyTxError(error) === expectedOutcome)
     })
 

@@ -82,11 +82,13 @@ The method names below come from the Kickback and NimJar reference apps. Check e
 | `sendUpdateStakerTransaction` | Switch to another validator |
 | `sendRetireStakeTransaction` | Withdraw step 1: release stopped stake |
 | `sendRemoveStakeTransaction` | Withdraw step 2: send NIM back to the wallet |
-| `getHostNetwork()` | Mainnet or testnet, read once at startup |
+| `getHostNetwork()` | Mainnet or testnet — picks the RPC endpoint (below) and drives the Testnet badge |
 | `isConsensusEstablished()` | Show "Nimiq Pay is still syncing" instead of failing |
 | `NimiqProviderError` | Tell apart: declined by the user, not sent, maybe sent |
 
 The provider only exists inside Nimiq Pay. Outside it, show "Open Hexgrove in Nimiq Pay" with a deeplink button (`nimiqpay://miniapp?url=<your url>`), never a blank screen.
+
+**RPC endpoint selection.** `setRPCUrl` requires a URL matching Nimiq Pay's active network (per the Provider API reference on nimiq.dev/mini-apps: "a Nimiq JSON-RPC server matching Nimiq Pay's active network"). `src/nimiq/provider.ts`'s `rpcUrlForNetwork()` picks `DEFAULT_TESTNET_RPC_URL` (`https://rpc.testnet.nimiqwatch.com`) or `DEFAULT_MAINNET_RPC_URL` (`https://rpc.nimiqwatch.com`) from `getHostNetwork()`'s result, falling back to testnet when the network is unknown. Both URLs come from NimJar's `src/server.js` defaults (same precedent used for the testnet URL already in use). **Mainnet is UNVERIFIED** — nothing has confirmed this endpoint works from this app (CORS, correctness, or otherwise) on a real mainnet Nimiq Pay session. See Open questions.
 
 **Read from public data, not app memory**
 
@@ -311,7 +313,9 @@ Type uses a rounded system stack (ui-rounded, SF Pro Rounded, Nunito, Avenir Nex
 
 ## Open questions to verify on testnet
 
-Nine things are still unconfirmed, and the first four change screens, so settle them before building the staking flow. Where a question can be answered by testing, test it with two different amounts. Two questions are already answered, below the table.
+Ten things are still unconfirmed, and the first four change screens, so settle them before building the staking flow. Where a question can be answered by testing, test it with two different amounts. Two questions are already answered, below the table.
+
+**Question 12 is UNVERIFIED on mainnet and blocks nothing else, but must be confirmed before the competition submission**, since judges will likely use Nimiq Pay on mainnet (everything else in this app has only ever been run and confirmed on testnet).
 
 | # | Question | Why it matters | Where to look |
 | --- | --- | --- | --- |
@@ -322,8 +326,9 @@ Nine things are still unconfirmed, and the first four change screens, so settle 
 | 6 | Does switching validators require stopping earning first? | The switch flow copy | arpl describes deactivating as the step for moving to another validator; confirm on testnet |
 | 7 | How do you tell pool payouts from ordinary incoming transfers? | A misclassified transfer would inflate plant growth and break the honesty rule | `chain.ts` in [NimBooks](https://github.com/subimpact/nimbooks); the payout files in Kickback |
 | 8 | Do direct-payout pools and the 12-hour payout cadence exist on testnet? | Reward reading may only be testable on mainnet with a small stake | Testnet validator list; NimJar ran steps on mainnet |
-| 9 | What do real reliability scores look like across pools? | The sunny, cloudy and stormy cutoffs | Validators API data |
+| 9 | What do real reliability scores look like across pools? | The sunny, cloudy and stormy cutoffs | Validators API data — found via NimJar's `src/server.js`, 2026-11-10: a separate hosted service, not the chain RPC's `getActiveValidators` this app currently uses. `https://validators-api-main.je-cf9.workers.dev` (mainnet) / `https://validators-api-test.je-cf9.workers.dev` (testnet). Shape unconfirmed — not yet fetched or used by this app |
 | 10 | Exact submission cutoff time, promotion checklist items, and how later submissions count for real usage | Scoring and planning | miniappscompetition.com rules and the community forum |
+| 12 | Does the mainnet RPC (`rpc.nimiqwatch.com`) actually work from this app — reachable, CORS-permitting, and returning correct data for `getBalance`, `getStakerByAddress`, `getPolicyConstants`, `getActiveValidators`? Is the mainnet minimum stake also 100 NIM? | Everything built and confirmed so far was run only on testnet; judges will likely use Nimiq Pay on mainnet | A real phone, Nimiq Pay set to mainnet, an account with no stake. See README, "Testing on mainnet" |
 
 **Answered**
 
@@ -361,6 +366,7 @@ Recorded as seen, not as verified. None of these answer a numbered question abov
 - `TRANSACTION_OUTCOME_UNKNOWN` (code -32001) maps to the existing "Maybe sent" outcome — never offer a plain retry for it, read the chain instead.
 - Declining an approval in Nimiq Pay was confirmed, 2026-11-10, on a real phone (testnet): lands correctly on the "No problem" outcome.
 - Probe log, 2026-11-10: swiping the Nimiq Pay approval sheet away without answering, mid-`sendStakeTransaction`, returned `NimiqProviderError` type `INTERNAL_ERROR`, code -32603, message `[birpc] timeout on calling "handleRequest"`. Nothing was confirmed. Treated as "no answer from Nimiq Pay" (mapped to the "Timed out" outcome above), not as declined, since the same error could also mean Nimiq Pay never replied after an approval was shown — not necessarily that the user dismissed it. The cause of the earlier "Operation timed out after 30000 milliseconds" message (above) remains unconfirmed; these are two distinct observed messages, both mapped to the same outcome because neither cause is confirmed.
+- Mainnet readiness audit, 2026-11-10: until this date, every `setRPCUrl` call in the real app (not the probe) was hardcoded to the testnet RPC regardless of `getHostNetwork()`'s result — found in `HomeScreen.vue` and four places in `StakeSheet.vue`. Fixed: both now pick the RPC via the new `rpcUrlForNetwork()` (`src/nimiq/provider.ts`), which reads `getHostNetwork()` and falls back to testnet when unknown — provably no behavior change on testnet, since `getHostNetwork()` already returns `'testnet'` there (confirmed earlier, and in the mock). The mainnet RPC itself, `https://rpc.nimiqwatch.com`, is NimJar's `src/server.js` default (same source already used for the testnet URL) — confirmed via NimJar's repository, not guessed. It has not been reached from this app. Nimiq's own Provider API reference (nimiq.dev/mini-apps) confirms the general requirement: `setRPCUrl`'s URL must match "Nimiq Pay's active network." See Open question 12.
 
 ## Test plan
 

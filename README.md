@@ -12,6 +12,8 @@ Connect screen, read-only home screen (combined stake across every account, gard
 
 Confirmed working on a real phone (iPhone, Nimiq Pay, testnet, 2026-11-09): the plain-http LAN Custom URL, `listAccounts`, `getBalance`, and `getHostNetwork`. The staking flow (`sendNewStakerTransaction`, `sendStakeTransaction`, and the error outcomes) is built against confirmed testnet behavior (see `docs/SPEC.md`) but not yet re-confirmed live in Nimiq Pay on a phone.
 
+**Mainnet is UNVERIFIED.** Everything above was built and tested only on testnet. The app now picks its RPC endpoint from `getHostNetwork()` rather than always using testnet's (see "Nimiq calls used" below), but the mainnet endpoint itself has never been reached from this app. See "Testing on mainnet" below and `docs/SPEC.md`, open question 12.
+
 ## Live URL
 
 **https://hexgrove.vercel.app/**
@@ -61,6 +63,20 @@ From the home screen, **Stake** (no stake yet) or **Add stake** (already staked)
 
 Testnet NIM has no value — get some from a testnet faucet first if your wallet is empty. The minimum to create a new staker is read live from the chain (confirmed as 100 NIM on testnet); adding to an existing staker has no separate minimum.
 
+## Testing on mainnet (read paths only)
+
+Mainnet is UNVERIFIED (see Status above). This checks the read paths only — **don't approve any transaction yet**, since create-staker and add-stake have never been tried against the mainnet RPC, and a real approval spends real NIM and fees.
+
+1. Switch Nimiq Pay's own account to mainnet, then open the same mini app URL (live or Custom URL) as usual. Use an account that has never staked, so the home screen has nothing to lose by getting it wrong.
+2. Check:
+   - No **Testnet** badge (confirms `getHostNetwork()` reports `'mainnet'`).
+   - Spendable balance shows a real number, not an error (confirms `getBalance` against the mainnet RPC).
+   - The home screen reaches "Stake NIM. Grow a garden." (the empty state), not a "Can't load your accounts" error (confirms `getStakerByAddress` against the mainnet RPC correctly reports no staker, rather than erroring).
+3. Tap **Stake** to open the sheet, but stop there — do not tap the amount field's submit button:
+   - "Minimum stake" should show a number (confirms `getPolicyConstants`). Testnet's is 100 NIM; mainnet's is unconfirmed and may differ.
+   - The validator list should show at least one entry (confirms `getActiveValidators`).
+4. Close the sheet without approving anything, and report back what you saw — especially the minimum stake figure and whether validators loaded. Once reads are confirmed, a follow-up session can verify an actual mainnet stake with a small amount.
+
 ## Mock provider (dev only)
 
 To work on screens on a PC without a phone, add `?mock=1` to the dev server URL in a regular browser, e.g. `http://localhost:5173/?mock=1`. This stands in two fake accounts (110,000 NIM and 0 NIM, network testnet) for the real Nimiq Pay provider.
@@ -107,7 +123,7 @@ Via [`@nimiq/mini-app-sdk`](https://www.npmjs.com/package/@nimiq/mini-app-sdk) (
 - `nimiq.isConsensusEstablished()` — gates the rest of the screen on network consensus.
 - `nimiq.listAccounts()` — basic accounts only. **Confirmed on testnet.**
 - `nimiq.getBalance(address)` — balance in Luna; feature-detected with `typeof nimiq.getBalance === 'function'` since older Nimiq Pay hosts don't expose it. **Confirmed on testnet.**
-- `getHostNetwork()` — drives the testnet badge. **Confirmed on testnet.**
+- `getHostNetwork()` — picks the RPC endpoint (`rpcUrlForNetwork()` in `src/nimiq/provider.ts`: `rpc.testnet.nimiqwatch.com` or `rpc.nimiqwatch.com`, falling back to testnet when unknown) and drives the Testnet badge. **Confirmed on testnet; mainnet is UNVERIFIED** — see "Testing on mainnet" above.
 - `NimiqProviderError` — distinguishes a declined account request, and a failed staking approval, from other failures.
 - `nimiq.sendNewStakerTransaction({ delegation, value })` — creates a staker. **Confirmed on testnet.**
 - `nimiq.sendStakeTransaction({ value })` — adds to an existing staker. **Confirmed on testnet** with a 100 NIM add.

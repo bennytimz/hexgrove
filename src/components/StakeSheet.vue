@@ -5,7 +5,7 @@ import { computed, onMounted, ref } from 'vue'
 import { formatNim, nimToLuna } from '../lib/luna'
 import { isValidatorHealthy } from '../lib/sky'
 import { classifyStakeRecheck, classifyTxError, TX_OUTCOME_COPY } from '../lib/txOutcome'
-import { DEFAULT_TESTNET_RPC_URL, getProvider } from '../nimiq/provider'
+import { getHostNetwork, getProvider, rpcUrlForNetwork } from '../nimiq/provider'
 import { readCombinedStaker } from '../nimiq/staker'
 
 const props = defineProps<{
@@ -88,7 +88,7 @@ async function loadForm() {
   loadError.value = false
   try {
     const nimiq = await getProvider()
-    nimiq.setRPCUrl(DEFAULT_TESTNET_RPC_URL)
+    nimiq.setRPCUrl(rpcUrlForNetwork(getHostNetwork()))
 
     const policyPromise = nimiq
       .request<{ minimumStake?: number }>({ method: 'getPolicyConstants' })
@@ -212,7 +212,7 @@ async function onSubmit() {
 
   try {
     const nimiq = await getProvider()
-    nimiq.setRPCUrl(DEFAULT_TESTNET_RPC_URL)
+    nimiq.setRPCUrl(rpcUrlForNetwork(getHostNetwork()))
 
     // Read the chain fresh right before sending, to decide create vs add —
     // never trust the hasStaker prop for the call itself, only for the form.
@@ -244,7 +244,7 @@ async function checkAgain() {
   phase.value = 'confirming'
   try {
     const nimiq = await getProvider()
-    nimiq.setRPCUrl(DEFAULT_TESTNET_RPC_URL)
+    nimiq.setRPCUrl(rpcUrlForNetwork(getHostNetwork()))
     const after = await readCombinedStaker(nimiq, props.addresses)
     const total = after.earningLuna + after.waitingLuna + after.releasedLuna
     if (total > baselineTotal.value) {
@@ -271,7 +271,7 @@ async function checkTimedOut() {
   let result: ReturnType<typeof classifyStakeRecheck> = 'checkFailed'
   try {
     const nimiq = await getProvider()
-    nimiq.setRPCUrl(DEFAULT_TESTNET_RPC_URL)
+    nimiq.setRPCUrl(rpcUrlForNetwork(getHostNetwork()))
     const after = await readCombinedStaker(nimiq, props.addresses)
     const total = after.earningLuna + after.waitingLuna + after.releasedLuna
     result = classifyStakeRecheck({ ok: true, total }, baselineTotal.value)

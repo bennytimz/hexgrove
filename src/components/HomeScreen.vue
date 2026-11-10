@@ -12,7 +12,7 @@ import { nextTier, plotsForStake } from '../lib/plots'
 import { compactAddress, computeSkyState } from '../lib/sky'
 import { computeWateringState, waterToday } from '../lib/watering'
 import { formatWaitRemaining } from '../lib/waiting'
-import { DEFAULT_TESTNET_RPC_URL, getHostNetwork, getProvider, NimiqProviderError, resetProvider } from '../nimiq/provider'
+import { getHostNetwork, getProvider, NimiqProviderError, resetProvider, rpcUrlForNetwork } from '../nimiq/provider'
 import { readCombinedStaker } from '../nimiq/staker'
 import { playChime, WATERING_CHIME } from '../sound/chime'
 
@@ -209,7 +209,7 @@ async function loadCombined() {
   combinedState.value = 'loading'
   try {
     const nimiq = await getProvider()
-    nimiq.setRPCUrl(DEFAULT_TESTNET_RPC_URL)
+    nimiq.setRPCUrl(rpcUrlForNetwork(network.value))
 
     if (typeof nimiq.getBalance === 'function') {
       spendableUnsupported.value = false

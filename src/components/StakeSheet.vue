@@ -3,7 +3,7 @@ import type { TxOutcome } from '../lib/txOutcome'
 import type { NimiqProvider } from '../nimiq/provider'
 import type { ValidatorDirectoryEntry, ValidatorOption } from '../nimiq/validatorsApi'
 import { computed, onMounted, ref } from 'vue'
-import { formatNim, nimToLuna } from '../lib/luna'
+import { formatNim, nimToLuna, shortfallLuna } from '../lib/luna'
 import { compactAddress, isValidatorHealthy } from '../lib/sky'
 import { classifyStakeRecheck, classifyTxError, TX_OUTCOME_COPY } from '../lib/txOutcome'
 import { getHostNetwork, getProvider, rpcUrlForNetwork } from '../nimiq/provider'
@@ -171,6 +171,23 @@ const amountLuna = computed<bigint | null>(() => {
   catch {
     return null
   }
+})
+
+/**
+ * True when no amount could ever work: a brand-new stake needs at least the
+ * minimum, and the spendable balance is below it. Shown as a blocking
+ * message instead of a dead-end disabled form, since no input can fix it.
+ */
+const insufficientBalance = computed(() => {
+  if (props.hasStaker || minimumLuna.value === null)
+    return false
+  return shortfallLuna(minimumLuna.value, props.spendableLuna) > 0n
+})
+
+const shortfall = computed(() => {
+  if (minimumLuna.value === null)
+    return 0n
+  return shortfallLuna(minimumLuna.value, props.spendableLuna)
 })
 
 const canSubmit = computed(() => {
@@ -393,6 +410,18 @@ const locked = computed(() => phase.value === 'sending' || phase.value === 'conf
         </p>
         <button class="btn-primary" type="button" @click="loadForm">
           Try again
+        </button>
+      </template>
+
+      <template v-else-if="phase === 'form' && insufficientBalance">
+        <p class="hint">
+          Spendable: {{ formatNim(spendableLuna) }} NIM
+        </p>
+        <p role="alert">
+          Staking needs at least {{ formatNim(minimumLuna!) }} NIM. Add {{ formatNim(shortfall) }} more NIM to your wallet to stake.
+        </p>
+        <button class="btn-ghost" type="button" @click="close">
+          Back to garden
         </button>
       </template>
 

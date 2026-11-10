@@ -9,7 +9,7 @@ import HexGarden from './HexGarden.vue'
 import StakeSheet from './StakeSheet.vue'
 import StopEarningSheet from './StopEarningSheet.vue'
 import WithdrawSheet from './WithdrawSheet.vue'
-import { formatNim } from '../lib/luna'
+import { formatNim, shortfallLuna } from '../lib/luna'
 import { PREVIEW_PLANTS } from '../lib/plants'
 import { nextTier, plotsForStake } from '../lib/plots'
 import { compactAddress, computeSkyState } from '../lib/sky'
@@ -45,6 +45,10 @@ const accounts = ref<string[]>([])
 const combinedState = ref<CombinedState>('loading')
 const spendableLuna = ref(0)
 const spendableUnsupported = ref(false)
+/** True if any address's getBalance call failed — shown instead of silently treating a failed read as a 0 balance. */
+const spendableLoadFailed = ref(false)
+/** The live minimum stake, read alongside policy in loadCombined() — used only for the empty-state hint below, never hardcoded. */
+const minimumStakeLuna = ref<bigint | null>(null)
 const earningLuna = ref<bigint>(0n)
 const waitingLuna = ref<bigint>(0n)
 /** The waiting countdown's current phase and copy — see src/lib/waiting.ts, docs/SPEC.md "Unstaking timing" (DOCUMENTED, NOT YET VERIFIED ON CHAIN). */
@@ -238,17 +242,21 @@ async function loadCombined() {
     const nimiq = await getProvider()
     nimiq.setRPCUrl(rpcUrlForNetwork(network.value))
 
+    spendableLoadFailed.value = false
     if (typeof nimiq.getBalance === 'function') {
       spendableUnsupported.value = false
+      let anyBalanceError = false
       const balances = await Promise.all(accounts.value.map(async (addr) => {
         try {
           return await nimiq.getBalance(addr)
         }
         catch (error) {
           console.error(`Could not load balance for ${addr}:`, error)
+          anyBalanceError = true
           return 0
         }
       }))
+      spendableLoadFailed.value = anyBalanceError
       spendableLuna.value = balances.reduce((sum, b) => sum + b, 0)
     }
     else {
@@ -262,6 +270,7 @@ async function loadCombined() {
       readPolicyConstants(nimiq),
     ])
 
+    minimumStakeLuna.value = policy.minimumStakeLuna
     earningLuna.value = staker.earningLuna
     waitingLuna.value = staker.waitingLuna
     releasedLuna.value = staker.releasedLuna
@@ -291,8 +300,9 @@ async function loadCombined() {
 
     const previousRaw = sessionStorage.getItem(SPENDABLE_STORAGE_KEY)
     const previousSpendable = previousRaw !== null ? Number(previousRaw) : null
-    const droppedRecently = !spendableUnsupported.value && previousSpendable !== null && spendableLuna.value < previousSpendable
-    if (!spendableUnsupported.value) {
+    const balanceKnown = !spendableUnsupported.value && !spendableLoadFailed.value
+    const droppedRecently = balanceKnown && previousSpendable !== null && spendableLuna.value < previousSpendable
+    if (balanceKnown) {
       sessionStorage.setItem(SPENDABLE_STORAGE_KEY, String(spendableLuna.value))
     }
 
@@ -385,7 +395,7 @@ onMounted(connect)
 <template>
   <main class="connect">
     <div v-if="isMock" class="mock-banner" role="status">
-      Mock data — not real Nimiq Pay behavior
+      Mock data, not real Nimiq Pay behavior
     </div>
     <div class="brand">
       <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true">
@@ -418,13 +428,29 @@ onMounted(connect)
       <p class="status">Connecting to Nimiq Pay…</p>
     </section>
 
-    <section v-else-if="phase === 'unavailable'" class="panel" role="alert">
+    <section v-else-if="phase === 'unavailable'" class="panel">
       <h1>Open Hexgrove in Nimiq Pay</h1>
-      <p>We couldn't reach the Nimiq Pay provider. If you're already inside Nimiq Pay, it may still be starting up.</p>
+      <p>Hexgrove is a Nimiq Pay mini app. It needs to run inside Nimiq Pay to show your account and balance.</p>
+      <p class="hint">Already in Nimiq Pay? It may still be starting up.</p>
       <a class="btn-primary" :href="deepLink">Open in Nimiq Pay</a>
       <button class="btn-ghost" type="button" @click="connect">
         Try again
       </button>
+      <p class="hint">
+        How to open it in Nimiq Pay: in the app, go to Mini Apps, choose Custom URL, and paste this page's address.
+      </p>
+      <a class="btn-ghost" href="https://github.com/bennytimz/hexgrove" target="_blank" rel="noopener">
+        View the code on GitHub
+      </a>
+      <button class="btn-ghost" type="button" @click="togglePreview">
+        {{ previewing ? 'Exit preview' : 'Preview a mature garden' }}
+      </button>
+      <template v-if="previewing">
+        <div class="preview-banner" role="status">
+          Preview: a sample garden, not yours
+        </div>
+        <HexGarden :plants="PREVIEW_PLANTS" :watered="true" sky-condition="sunny" sky-label="Sample conditions" />
+      </template>
     </section>
 
     <section v-else-if="phase === 'checkingConsensus'" class="panel" aria-live="polite">
@@ -476,7 +502,13 @@ onMounted(connect)
       <template v-else>
         <div class="stat">
           <small>Spendable</small>
-          <b v-if="!spendableUnsupported">{{ formatNim(spendableLuna) }} NIM</b>
+          <template v-if="spendableLoadFailed">
+            <span class="hint" role="alert">Can't load this right now.</span>
+            <button class="btn-ghost" type="button" @click="loadCombined">
+              Try again
+            </button>
+          </template>
+          <b v-else-if="!spendableUnsupported">{{ formatNim(spendableLuna) }} NIM</b>
           <span v-else class="hint">Update Nimiq Pay to see this.</span>
         </div>
 
@@ -486,7 +518,7 @@ onMounted(connect)
 
         <template v-if="previewing">
           <div class="preview-banner" role="status">
-            Preview — sample garden, not yours
+            Preview: a sample garden, not yours
           </div>
           <HexGarden :plants="PREVIEW_PLANTS" :watered="true" sky-condition="sunny" sky-label="Sample conditions" />
         </template>
@@ -550,7 +582,12 @@ onMounted(connect)
 
         <template v-else>
           <h1>Stake NIM. Grow a garden.</h1>
-          <p>Staking NIM grows a garden of hex plots. Rewards vary, and stopping takes time.</p>
+          <p>Staking NIM grows a garden of hex plots that fills in as your stake earns rewards. Rewards vary, and stopping takes time.</p>
+          <p v-if="minimumStakeLuna !== null" class="hint">
+            {{ !spendableLoadFailed && shortfallLuna(minimumStakeLuna, spendableLuna) > 0n
+              ? `Staking needs at least ${formatNim(minimumStakeLuna)} NIM. You have ${formatNim(spendableLuna)} NIM.`
+              : `Staking needs at least ${formatNim(minimumStakeLuna)} NIM.` }}
+          </p>
           <button class="btn-primary" type="button" @click="stakeSheetMode = 'create'">
             Stake
           </button>
@@ -741,6 +778,10 @@ onMounted(connect)
   color: var(--text);
   font-weight: 700;
   font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
   cursor: pointer;
 }
 

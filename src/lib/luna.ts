@@ -35,6 +35,17 @@ export function formatNim(luna: bigint | number): string {
 }
 
 /**
+ * How much more Luna is needed to reach a minimum, given what's already
+ * available. 0n when the minimum is already met. Accepts a bigint or a
+ * safe-integer number for `haveLuna` (e.g. getBalance's return type).
+ */
+export function shortfallLuna(minimumLuna: bigint, haveLuna: bigint | number): bigint {
+  const have = typeof haveLuna === 'bigint' ? haveLuna : BigInt(Math.trunc(haveLuna))
+  const diff = minimumLuna - have
+  return diff > 0n ? diff : 0n
+}
+
+/**
  * Parses a NIM amount string (up to 5 decimal places) into an integer Luna amount.
  */
 export function nimToLuna(nim: string): bigint {

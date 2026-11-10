@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatNim, lunaToNim, nimToLuna } from './luna'
+import { formatNim, lunaToNim, nimToLuna, shortfallLuna } from './luna'
 
 describe('lunaToNim and nimToLuna', () => {
   it('converts Luna to NIM', () => {
@@ -58,5 +58,23 @@ describe('lunaToNim and nimToLuna', () => {
     expect(formatNim(11_000_000_000n)).toBe('110,000')
     expect(formatNim(12_345_678n)).toBe('123.45678')
     expect(formatNim(2_100_000_000_000_001n)).toBe('21,000,000,000.00001')
+  })
+})
+
+describe('shortfallLuna', () => {
+  const minimumLuna = 10_000_000n // 100 NIM
+
+  it('is the gap between the minimum and what is available', () => {
+    expect(shortfallLuna(minimumLuna, 4_000_000n)).toBe(6_000_000n) // have 40, need 60 more
+    expect(shortfallLuna(minimumLuna, 4_000_000)).toBe(6_000_000n) // accepts a plain number too
+  })
+
+  it('is zero once the minimum is met or exceeded', () => {
+    expect(shortfallLuna(minimumLuna, minimumLuna)).toBe(0n)
+    expect(shortfallLuna(minimumLuna, 15_000_000n)).toBe(0n)
+  })
+
+  it('is zero when nothing is needed at all', () => {
+    expect(shortfallLuna(0n, 0n)).toBe(0n)
   })
 })

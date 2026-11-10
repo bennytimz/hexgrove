@@ -26,8 +26,9 @@ Everything here has been built against confirmed or documented behavior, never g
 | Area | Testnet | Mainnet |
 | --- | --- | --- |
 | Connect, accounts, balance | Confirmed on a real phone | Confirmed on a real phone |
-| Create a stake, add to a stake | Confirmed on a real phone | Built, not yet sent on a real phone |
-| Validator list, minimum stake, Validators API | Confirmed on a real phone | Read paths confirmed on a real phone (fee, reliability and a Recommended tag all showed correctly). No mainnet transaction sent yet |
+| Create a stake | Confirmed on a real phone | Confirmed on a real phone (100 NIM, 2026-11-10, no fee) |
+| Add to an existing stake | Confirmed on a real phone | Built, not yet sent on a real phone |
+| Validator list, minimum stake, Validators API | Confirmed on a real phone | Confirmed on a real phone — reads (fee, reliability, Recommended tag) and the live minimum stake, confirmed when a 100 NIM create-staker transaction succeeded on mainnet |
 | Stop earning, withdraw | Built, **UNVERIFIED**: never exercised against a real unstaking wait | Built, **UNVERIFIED** |
 | The waiting countdown, the release timing | Based on nimiq.dev's documented rules, **UNVERIFIED** on chain | Same |
 
@@ -78,9 +79,9 @@ Opening the same URL in a regular desktop browser (outside Nimiq Pay) should sho
 4. From the home screen: **Stake** (minimum 100 NIM, read live, confirmed) creates a staker; **Add stake** adds to one. A validator is picked for you, with fee, reliability and network share shown when available, but you can browse and choose any active one.
 5. **Stop earning** and **Withdraw** are built but UNVERIFIED. If you try them, use a small amount, expect the documented wait (about 12 to 24 hours depending on timing), and please report back what actually happened; see `docs/SPEC.md`'s open question 13.
 
-## Testing on mainnet (read paths confirmed, transactions unverified)
+## Testing on mainnet (create a stake confirmed, other transactions unverified)
 
-A real phone test already confirmed the read paths: spendable balance, staker record, the live minimum stake, the validator list, and fee/reliability/Recommended data from the Validators API all showed correctly on mainnet. No mainnet transaction (stake, stop earning or withdraw) has been sent from this app yet, so treat any approval as untested until you've tried it yourself.
+A real phone test already confirmed the read paths: spendable balance, staker record, the live minimum stake, the validator list, and fee/reliability/Recommended data from the Validators API all showed correctly on mainnet. A real 100 NIM create-staker transaction has also been sent and confirmed on mainnet (2026-11-10, no fee). Adding to an existing stake, stop earning and withdraw have not been sent from this app on mainnet yet, so treat those as untested until you've tried them yourself.
 
 1. Switch Nimiq Pay's own account to mainnet, then open the app as usual.
 2. Check: no **Testnet** badge; your real spendable balance shows; the garden or the empty state loads without an error.
@@ -131,13 +132,13 @@ Via [`@nimiq/mini-app-sdk`](https://www.npmjs.com/package/@nimiq/mini-app-sdk) (
 | `getBalance(address)` | Spendable NIM | Confirmed |
 | `getHostNetwork()` | Picks the RPC endpoint and the Testnet badge | Confirmed on testnet and mainnet |
 | `isConsensusEstablished()` | Shows "still syncing" instead of failing | Confirmed |
-| `sendNewStakerTransaction({ delegation, value })` | Creates a staker | Confirmed on testnet |
+| `sendNewStakerTransaction({ delegation, value })` | Creates a staker | Confirmed on testnet and mainnet |
 | `sendStakeTransaction({ value })` | Adds to an existing staker | Confirmed on testnet |
 | `sendSetActiveStakeTransaction({ newActiveBalance })` | Stops earning on an amount, as an absolute target | UNVERIFIED |
 | `sendRetireStakeTransaction({ retireStake })` | Withdraw step 1 | UNVERIFIED |
 | `sendRemoveStakeTransaction({ value })` | Withdraw step 2, the entire retired balance | UNVERIFIED |
-| `request({ method: 'getStakerByAddress' })` | Active, waiting and released balances | Confirmed on testnet |
-| `request({ method: 'getPolicyConstants' })` | The live minimum stake and epoch length, never hardcoded | Confirmed on testnet: 100 NIM minimum, 43,200-block epoch (about 12 hours) |
+| `request({ method: 'getStakerByAddress' })` | Active, waiting and released balances | Confirmed on testnet and mainnet |
+| `request({ method: 'getPolicyConstants' })` | The live minimum stake and epoch length, never hardcoded | Confirmed on testnet and mainnet: 100 NIM minimum, 43,200-block epoch (about 12 hours) on testnet |
 | `request({ method: 'getActiveValidators' })` | Active, jailed and retired validators | Confirmed on testnet and mainnet |
 | `NimiqProviderError` | Tells apart declined, not sent, maybe sent and more | Confirmed |
 

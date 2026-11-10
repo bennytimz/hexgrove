@@ -8,9 +8,9 @@ See [`docs/SPEC.md`](docs/SPEC.md) for the full product spec and [`docs/hexgrove
 
 ## Status
 
-Build order step 1 only: a single screen that connects to Nimiq Pay, picks an account, and shows its balance and network. No staking, no garden yet.
+Connect screen, read-only home screen (combined stake across every account, garden of hex plots, watering, sound, sky from the validator you're delegated to), and the real staking flow: create a staker or add to one from the **Stake** / **Add stake** buttons. Stop earning and withdraw aren't built yet — the unstake wait time is still being measured on testnet.
 
-Confirmed working on a real phone (iPhone, Nimiq Pay, testnet, 2026-11-09): the plain-http LAN Custom URL, `listAccounts`, `getBalance`, and `getHostNetwork`.
+Confirmed working on a real phone (iPhone, Nimiq Pay, testnet, 2026-11-09): the plain-http LAN Custom URL, `listAccounts`, `getBalance`, and `getHostNetwork`. The staking flow (`sendNewStakerTransaction`, `sendStakeTransaction`, and the error outcomes) is built against confirmed testnet behavior (see `docs/SPEC.md`) but not yet re-confirmed live in Nimiq Pay on a phone.
 
 ## Live URL
 
@@ -55,6 +55,12 @@ Two ways, both work with this dev server (`server.host` and `server.allowedHosts
 
 Opening the same URL in a regular desktop browser (outside Nimiq Pay) should show "Open Hexgrove in Nimiq Pay" with an **Open in Nimiq Pay** button and a **Try again** button.
 
+## Staking flow
+
+From the home screen, **Stake** (no stake yet) or **Add stake** (already staked) opens a sheet with an amount field and, for a new stake, a validator chooser. Approve the transaction in Nimiq Pay when prompted; the sheet polls the chain and updates the garden once the stake shows.
+
+Testnet NIM has no value — get some from a testnet faucet first if your wallet is empty. The minimum to create a new staker is read live from the chain (confirmed as 100 NIM on testnet); adding to an existing staker has no separate minimum.
+
 ## Mock provider (dev only)
 
 To work on screens on a PC without a phone, add `?mock=1` to the dev server URL in a regular browser, e.g. `http://localhost:5173/?mock=1`. This stands in two fake accounts (110,000 NIM and 0 NIM, network testnet) for the real Nimiq Pay provider.
@@ -71,10 +77,18 @@ Add `&fail=` to simulate a specific failure:
 | `timeout` | A slow provider: it injects ~11 seconds in (just past the default 10s timeout), so the first connect attempt fails but a later retry succeeds |
 | `syncing` | `isConsensusEstablished()` returns false once, then true, so you can see the "still syncing" screen and the retry succeeding |
 | `declined` | `listAccounts()` always rejects with a `PERMISSION_DENIED` `NimiqProviderError` |
+| `stakeDeclined` | The stake sheet's approval is declined (`PERMISSION_DENIED`) |
+| `stakeNotSent` | The stake sheet's approval fails before reaching the network |
+| `stakeNetworkDown` | The stake sheet's approval fails with a `NETWORK_ERROR` |
+| `stakeMaybeSent` | The stake sheet's approval returns `TRANSACTION_OUTCOME_UNKNOWN` — shows "Check again" / "Back to garden", never a plain retry |
+| `stakeBlocked` | The stake sheet's approval is refused because another transaction is still pending |
+| `stakeTimedOut` | The stake sheet's approval is left unconfirmed for ~30 seconds and times out |
 
 Example: `http://localhost:5173/?mock=1&fail=declined`
 
-Staking calls (`sendNewStakerTransaction`, etc.) are deliberately **not** mocked — they throw a clear "not mocked yet" error. They'll be mocked only after their real behavior is confirmed on testnet.
+Add `&nostake=1` to make every mock address report no staker, so the create-staker flow is reachable (the default mock dataset is pre-staked, so only the add-stake flow is reachable without it). Combine freely, e.g. `http://localhost:5173/?mock=1&nostake=1&fail=stakeDeclined` tests declining a create-staker approval.
+
+The mock's staker records are stateful: a successful `sendNewStakerTransaction` or `sendStakeTransaction` call updates what a later `getStakerByAddress` reports, so the stake sheet's post-send confirmation poll and the garden update behave the same way they would against a real node.
 
 ## Test
 
@@ -93,15 +107,20 @@ Via [`@nimiq/mini-app-sdk`](https://www.npmjs.com/package/@nimiq/mini-app-sdk) (
 - `nimiq.listAccounts()` — basic accounts only. **Confirmed on testnet.**
 - `nimiq.getBalance(address)` — balance in Luna; feature-detected with `typeof nimiq.getBalance === 'function'` since older Nimiq Pay hosts don't expose it. **Confirmed on testnet.**
 - `getHostNetwork()` — drives the testnet badge. **Confirmed on testnet.**
-- `NimiqProviderError` — distinguishes a declined account request from other failures.
+- `NimiqProviderError` — distinguishes a declined account request, and a failed staking approval, from other failures.
+- `nimiq.sendNewStakerTransaction({ delegation, value })` — creates a staker. **Confirmed on testnet.**
+- `nimiq.sendStakeTransaction({ value })` — adds to an existing staker. **Confirmed on testnet** with a 100 NIM add.
+- `nimiq.request({ method: 'getStakerByAddress', params: [address] })` — reads a staker's active, waiting and released balances. **Confirmed on testnet.**
+- `nimiq.request({ method: 'getPolicyConstants' })` — the live minimum stake (never hardcoded). **Confirmed on testnet:** `minimumStake: 10000000` Luna (100 NIM).
+- `nimiq.request({ method: 'getActiveValidators' })` — the validator chooser's list and the home screen's sky condition.
 
 All Luna/NIM conversions (`src/lib/luna.ts`) use `BigInt`, never floats.
 
 ## Roadmap
 
-- Validators, amount, approval states, your stake, partial stop earning, withdraw (the staking flow).
-- The garden itself: plots, growth stages, species, and validator-driven sky/soil, derived from chain data.
-- Watering, streaks, and local-first sync to a small backend keyed to the wallet address.
+- ~~Create-staker and add-stake~~ — built. Partial stop earning and withdraw are next, once the unstake wait time is confirmed on testnet.
+- ~~The garden: plots, growth stages, species, and validator-driven sky, derived from chain data~~ — built.
+- ~~Watering and streaks~~ — built (local only; a small backend to sync across devices, keyed to the wallet address, is not built yet).
 - Collection, Progress, and the share card.
 - A leaderboard is on the roadmap only; the data model is kept ready for it but it isn't built.
 

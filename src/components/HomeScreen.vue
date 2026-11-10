@@ -5,6 +5,7 @@ import type { SkyCondition } from '../lib/sky'
 import type { StoredWatering } from '../lib/watering'
 import { computed, onMounted, ref } from 'vue'
 import HexGarden from './HexGarden.vue'
+import StakeSheet from './StakeSheet.vue'
 import { formatNim } from '../lib/luna'
 import { PREVIEW_PLANTS } from '../lib/plants'
 import { nextTier, plotsForStake } from '../lib/plots'
@@ -12,6 +13,7 @@ import { compactAddress, computeSkyState } from '../lib/sky'
 import { computeWateringState, waterToday } from '../lib/watering'
 import { formatWaitRemaining } from '../lib/waiting'
 import { DEFAULT_TESTNET_RPC_URL, getHostNetwork, getProvider, NimiqProviderError, resetProvider } from '../nimiq/provider'
+import { readCombinedStaker } from '../nimiq/staker'
 import { playChime, WATERING_CHIME } from '../sound/chime'
 
 const MUTED_STORAGE_KEY = 'hexgrove.muted'
@@ -43,7 +45,8 @@ const waitingLuna = ref<bigint>(0n)
 const waitingReadyText = ref('')
 const releasedLuna = ref<bigint>(0n)
 const stakeHolders = ref<string[]>([])
-const stakeComingSoon = ref(false)
+const delegationAddress = ref<string | null>(null)
+const stakeSheetMode = ref<'create' | 'add' | null>(null)
 
 const initialSky = computeSkyState(null)
 const skyCondition = ref<SkyCondition>(initialSky.condition)
@@ -226,83 +229,21 @@ async function loadCombined() {
       spendableLuna.value = 0
     }
 
-    interface StakerLookup {
-      address: string
-      active: bigint
-      inactive: bigint
-      retired: bigint
-      inactiveFrom: number | null
-      delegation: string | null
-      error: boolean
-    }
-
-    const [blockNumber, stakerResults] = await Promise.all([
+    const [blockNumber, staker] = await Promise.all([
       nimiq.getBlockNumber(),
-      Promise.all(accounts.value.map(async (addr): Promise<StakerLookup> => {
-        try {
-          const staker = await nimiq.request<{
-            balance?: number
-            inactiveBalance?: number
-            inactiveFrom?: number | null
-            retiredBalance?: number
-            delegation?: string | null
-          } | null>({ method: 'getStakerByAddress', params: [addr] })
-
-          return {
-            address: addr,
-            active: BigInt(staker?.balance ?? 0),
-            inactive: BigInt(staker?.inactiveBalance ?? 0),
-            retired: BigInt(staker?.retiredBalance ?? 0),
-            inactiveFrom: staker?.inactiveFrom ?? null,
-            delegation: staker?.delegation ?? null,
-            error: false,
-          }
-        }
-        catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          const noStaker = /no staker with address/i.test(message)
-          if (!noStaker) {
-            console.error(`Could not load staker state for ${addr}:`, error)
-          }
-          return { address: addr, active: 0n, inactive: 0n, retired: 0n, inactiveFrom: null, delegation: null, error: !noStaker }
-        }
-      })),
+      readCombinedStaker(nimiq, accounts.value),
     ])
 
-    let totalEarning = 0n
-    let totalWaiting = 0n
-    let totalReleased = 0n
-    let latestInactiveFrom: number | null = null
-    const holders: string[] = []
-    let anyRealError = false
+    earningLuna.value = staker.earningLuna
+    waitingLuna.value = staker.waitingLuna
+    releasedLuna.value = staker.releasedLuna
+    stakeHolders.value = staker.holders
+    delegationAddress.value = staker.delegation
 
-    for (const r of stakerResults) {
-      if (r.error)
-        anyRealError = true
-      if (r.active > 0n || r.inactive > 0n || r.retired > 0n)
-        holders.push(r.address)
-      totalEarning += r.active
-      totalWaiting += r.inactive
-      totalReleased += r.retired
-      if (r.inactive > 0n && r.inactiveFrom !== null) {
-        latestInactiveFrom = latestInactiveFrom === null ? r.inactiveFrom : Math.max(latestInactiveFrom, r.inactiveFrom)
-      }
-    }
+    await loadSky(nimiq, staker.delegation)
 
-    earningLuna.value = totalEarning
-    waitingLuna.value = totalWaiting
-    releasedLuna.value = totalReleased
-    stakeHolders.value = holders
-
-    // Sky follows the delegation of whichever holder is actively earning,
-    // falling back to any holder with a delegation set.
-    const delegation = stakerResults.find(r => r.active > 0n && r.delegation)?.delegation
-      ?? stakerResults.find(r => r.delegation)?.delegation
-      ?? null
-    await loadSky(nimiq, delegation)
-
-    waitingReadyText.value = totalWaiting > 0n && latestInactiveFrom !== null
-      ? formatWaitRemaining(latestInactiveFrom - blockNumber)
+    waitingReadyText.value = staker.waitingLuna > 0n && staker.latestInactiveFrom !== null
+      ? formatWaitRemaining(staker.latestInactiveFrom - blockNumber)
       : ''
 
     const previousRaw = sessionStorage.getItem(SPENDABLE_STORAGE_KEY)
@@ -312,10 +253,10 @@ async function loadCombined() {
       sessionStorage.setItem(SPENDABLE_STORAGE_KEY, String(spendableLuna.value))
     }
 
-    if (totalEarning > 0n || totalWaiting > 0n || totalReleased > 0n) {
+    if (staker.earningLuna > 0n || staker.waitingLuna > 0n || staker.releasedLuna > 0n) {
       combinedState.value = 'staked'
     }
-    else if (anyRealError) {
+    else if (staker.anyError) {
       combinedState.value = 'error'
     }
     else if (droppedRecently) {
@@ -334,11 +275,9 @@ async function loadCombined() {
   }
 }
 
-function onStakeClick() {
-  stakeComingSoon.value = true
-  setTimeout(() => {
-    stakeComingSoon.value = false
-  }, 2000)
+function onStaked() {
+  stakeSheetMode.value = null
+  loadCombined()
 }
 
 /**
@@ -535,6 +474,9 @@ onMounted(connect)
             Watered
           </button>
           <p class="hint">Watering is just for fun. It never changes your rewards.</p>
+          <button class="btn-ghost" type="button" @click="stakeSheetMode = 'add'">
+            Add stake
+          </button>
         </template>
 
         <template v-else-if="combinedState === 'hidden'">
@@ -548,15 +490,22 @@ onMounted(connect)
         <template v-else>
           <h1>Stake NIM. Grow a garden.</h1>
           <p>Staking NIM grows a garden of hex plots. Rewards vary, and stopping takes time.</p>
-          <button class="btn-primary" type="button" @click="onStakeClick">
+          <button class="btn-primary" type="button" @click="stakeSheetMode = 'create'">
             Stake
           </button>
-          <p v-if="stakeComingSoon" class="hint">
-            Staking isn't built yet.
-          </p>
         </template>
       </template>
     </section>
+
+    <StakeSheet
+      v-if="stakeSheetMode"
+      :addresses="accounts"
+      :has-staker="stakeSheetMode === 'add'"
+      :existing-delegation="delegationAddress"
+      :spendable-luna="spendableLuna"
+      @close="stakeSheetMode = null"
+      @staked="onStaked"
+    />
   </main>
 </template>
 

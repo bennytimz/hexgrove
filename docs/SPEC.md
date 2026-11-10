@@ -192,7 +192,7 @@ The app has four tabs (Garden, Stake, Collection, Progress) plus an intro, and e
 | Garden (home) | Streak and watering chip, sky with condition label, hex plots, Staked (largest), Earned, Next reward estimate, main action | First run, earning (needs water, watered), cloudy or stormy banner, no data (dusk), partly stopped, fully stopped (resting), ready to withdraw, cached data with offline chip |
 | Validators | Pool rows with a soil sample, condition label, fee, estimated yield and payout type; filter Paid to wallet or All pools; sort Recommended, Reliability, Lowest fee | Loading skeleton, saved list, can't load with retry, pool not accepting stake (disabled), pool with no data, detail sheet, Recommended criteria sheet |
 | Amount | Chosen pool, amount field, Available balance, 25%, 50% and Max, plots preview with next tier, labelled yield estimate | Empty, below minimum, above balance, more than 5 decimals, adding to an existing pool, review sheet |
-| Approval (sheet) | Waiting for approval in Nimiq Pay, locked so it cannot be dismissed | Confirmed, declined, not sent, network down, maybe sent (see Errors and copy) |
+| Approval (sheet) | Waiting for approval in Nimiq Pay, locked so it cannot be dismissed | Confirmed, declined, not sent, network down, maybe sent, blocked by a pending transaction, timed out (see Errors and copy) |
 | Your stake | Pool and status chip, amounts earning, waiting and ready, the three-step list, main action | Earning, part stopped, fully stopped waiting, ready to withdraw, released but not withdrawn, loading, can't load |
 | Stop earning (sheet) | Amount field, 25% 50% 75% 100% buttons, what keeps earning and how many plots remain | Empty, above earning amount, remainder below minimum (stop all or smaller) |
 | Collection | Six plants in Common and Rare, locked ones as silhouettes with the unlock condition and progress; tap for the five growth stages | Locked, unlocked, count of unlocked |
@@ -208,7 +208,7 @@ The app has four tabs (Garden, Stake, Collection, Progress) plus an intro, and e
 
 ## Errors and copy
 
-Every action that needs Nimiq Pay approval ends in one of six outcomes, and each has fixed wording and one next action. Reliability and error handling carry most of the 45 functionality points, so build these before polish.
+Every action that needs Nimiq Pay approval ends in one of seven outcomes, and each has fixed wording and one next action. Reliability and error handling carry most of the 45 functionality points, so build these before polish.
 
 | Outcome | Title | Message | Next action |
 | --- | --- | --- | --- |
@@ -218,6 +218,7 @@ Every action that needs Nimiq Pay approval ends in one of six outcomes, and each
 | Maybe sent | We couldn't confirm yet | Your stake may or may not have gone through. Check your Nimiq Pay history before trying again, so you don't stake twice. | Check again, or Back to garden. Never a plain retry |
 | Withdraw step 2 fails | Almost done | Your stake is released, but the withdrawal didn't go through. Your NIM is safe. Finish when you're ready. | Finish withdrawing |
 | Blocked by a pending transaction | One at a time | Nimiq Pay is still finishing your last request. Wait a moment, then try again. | Try again |
+| Timed out | Approval timed out | Nimiq Pay didn't hear back from you in time, so nothing was sent. | Try again |
 
 Use the same pattern for stake, stop earning, reactivate and withdraw, replacing "stake" with the right noun.
 
@@ -226,6 +227,7 @@ Use the same pattern for stake, stop earning, reactivate and withdraw, replacing
 - While waiting for approval, disable the button, lock the sheet, and save the pending intent locally so a restart can recover it.
 - For "maybe sent", poll the chain for the transaction or the updated stake for about 30 seconds before showing the unconfirmed message.
 - Detect "blocked by a pending transaction" as a `NimiqProviderError` of type `INTERNAL_ERROR`, code -32603, whose message mentions a pending transaction (seen on testnet, 2026-11-09, see Testnet observations below). Show the fixed copy above, never the raw message.
+- Detect "timed out" as a `NimiqProviderError` of type `INTERNAL_ERROR`, code -32603 — the same type and code as "blocked by a pending transaction" — told apart only by the message text mentioning a timeout (seen on testnet, 2026-11-09, see Testnet observations below). Never show the raw message.
 - Do all money math in integer Luna. NIM has up to 5 decimal places.
 - Derive the lifecycle step from chain state every time the app opens, never from local memory.
 
@@ -353,6 +355,9 @@ Recorded as seen, not as verified. None of these answer a numbered question abov
   NQ59, the staker address, is a basic account with balance 0. NQ41 is an HTLC holding the spendable NIM (109,800 NIM), with NQ59 as its sender. So Nimiq Pay holds spendable NIM in an HTLC account, and the stake is recorded under the basic account. This reverses the earlier guess in this document: **NQ41 is the HTLC, not NQ59.** NimJar's `src/chain.js` sweeping-into-an-HTLC behavior is still only documented by NimJar's own testing notes, not an official Nimiq Pay or Mini App SDK guarantee, but this observation is consistent with it. Design consequence, already built: the home screen sums balances across every `listAccounts` address for "Spendable", and reads the staker record from each address rather than relying on one selected address. The "We can't see your stake yet" fallback stays, since this pattern has been seen on one account only.
 - Open question 9: the testnet validator list (`getActiveValidators`) returns `address`, `balance`, `numStakers` and health flags only, no fee or reliability score. That question needs another data source.
 - Chain policy facts read from `getPolicyConstants` on testnet: 1-second blocks, a batch is 60 blocks, an epoch is 43,200 blocks (12 hours), the transaction validity window is 7,200 blocks.
+- `sendNewStakerTransaction({ delegation, value })` confirmed creating a staker; `sendStakeTransaction({ value })` confirmed adding to an existing staker, tested with a 100 NIM add.
+- An approval left unconfirmed for about 30 seconds returns `NimiqProviderError` type `INTERNAL_ERROR`, code -32603, message exactly "Operation timed out after 30000 milliseconds" — same type and code as "blocked by a pending transaction" (above), told apart only by the message. Added as a seventh outcome, "Timed out", in Errors and copy, above.
+- `TRANSACTION_OUTCOME_UNKNOWN` (code -32001) maps to the existing "Maybe sent" outcome — never offer a plain retry for it, read the chain instead.
 
 ## Test plan
 
@@ -406,7 +411,7 @@ Build the risky parts first: the Nimiq connection and the staking flow carry 70 
 
 1. **Scaffold and connect.** Create the Vue 3 and Vite project and open it in Nimiq Pay on testnet. Gate: it shows your testnet account and balance.
 2. **Settle the open questions.** Answer questions 1 to 6 on testnet and update this spec. Gate: written answers for the amount-based stop, reactivation, wait time, minimum stake, withdraw approvals and switching.
-3. **Staking flow.** Validators, amount, approval states, Your stake, partial stop earning, withdraw. Gate: the full lifecycle in the test matrix passes with no dead ends.
+3. **Staking flow.** Validators, amount, approval states, Your stake, partial stop earning, withdraw. Gate: the full lifecycle in the test matrix passes with no dead ends. **Partial progress, 2026-11-09:** create-staker and add-stake are built (`StakeSheet.vue`), covering all seven outcomes in Errors and copy. Stop earning and withdraw are not yet built — the unstake wait time (open question 5/6) is still being measured on testnet, so this step's gate isn't fully met yet.
 4. **Garden from real data.** Plots, growth stages, species and validator conditions, derived from chain data. Gate: reward reading is verified against the payout rules.
 5. **Watering and backend.** Streak, unlocks, and local-first sync keyed to the wallet. Gate: a second device shows the same garden and streak.
 6. **Remaining screens.** Intro, Collection, Progress, share card, sound.

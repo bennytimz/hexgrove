@@ -46,3 +46,8 @@ export function computeSkyState(validator: ValidatorFields | null): SkyState {
 export function compactAddress(address: string): string {
   return address.replace(/\s+/g, '').toUpperCase()
 }
+
+/** Same rule as computeSkyState's Sunny branch, as a plain boolean — used to pick a sensible default in the validator chooser. */
+export function isValidatorHealthy(validator: ValidatorFields): boolean {
+  return validator.jailedFrom == null && !validator.retired && validator.inactivityFlag == null
+}

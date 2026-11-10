@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compactAddress, computeSkyState } from './sky'
+import { compactAddress, computeSkyState, isValidatorHealthy } from './sky'
 
 describe('computeSkyState', () => {
   it('is Dusk with no reliability-score wording when the validator is null (lookup failed or not found)', () => {
@@ -42,6 +42,20 @@ describe('computeSkyState', () => {
     ]
     for (const input of inputs) {
       expect(computeSkyState(input).condition).not.toBe('cloudy')
+    }
+  })
+})
+
+describe('isValidatorHealthy', () => {
+  it('agrees with computeSkyState\'s Sunny/Stormy split', () => {
+    const cases = [
+      { retired: false, inactivityFlag: null, jailedFrom: null },
+      { retired: true, inactivityFlag: null, jailedFrom: null },
+      { retired: false, inactivityFlag: 1, jailedFrom: null },
+      { retired: false, inactivityFlag: null, jailedFrom: 1 },
+    ]
+    for (const v of cases) {
+      expect(isValidatorHealthy(v)).toBe(computeSkyState(v).condition === 'sunny')
     }
   })
 })

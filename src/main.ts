@@ -2,7 +2,18 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import './style.css'
 
-const KNOWN_MOCK_FAIL_MODES = ['notinpay', 'timeout', 'syncing', 'declined']
+const KNOWN_MOCK_FAIL_MODES = [
+  'notinpay',
+  'timeout',
+  'syncing',
+  'declined',
+  'stakeDeclined',
+  'stakeNotSent',
+  'stakeNetworkDown',
+  'stakeMaybeSent',
+  'stakeBlocked',
+  'stakeTimedOut',
+]
 
 async function bootstrap() {
   if (import.meta.env.DEV) {
@@ -22,8 +33,9 @@ async function bootstrap() {
       }
 
       window.__HEXGROVE_MOCK__ = true
+      const noStake = params.get('nostake') === '1'
       const { installMockProvider } = await import('./mock/provider')
-      installMockProvider(fail as Parameters<typeof installMockProvider>[0])
+      installMockProvider(fail as Parameters<typeof installMockProvider>[0], noStake)
     }
   }
 

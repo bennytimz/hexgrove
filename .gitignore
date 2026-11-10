@@ -14,3 +14,6 @@ yarn-error.log*
 pnpm-debug.log*
 
 *.tsbuildinfo
+
+# Local demo footage and exports, never committed
+demo/

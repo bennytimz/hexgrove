@@ -1,5 +1,6 @@
+import type { ValidatorOption } from './validatorsApi'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { directoryUrlForNetwork, fetchValidatorsDirectory, isRecommendedValidator, parseDirectoryEntry, VALIDATORS_API_MAINNET_URL, VALIDATORS_API_TESTNET_URL } from './validatorsApi'
+import { directoryUrlForNetwork, fetchValidatorsDirectory, isRecommendedValidator, parseDirectoryEntry, pickDefaultValidator, sortValidatorOptions, VALIDATORS_API_MAINNET_URL, VALIDATORS_API_TESTNET_URL } from './validatorsApi'
 
 describe('directoryUrlForNetwork', () => {
   it('picks the mainnet directory for \'mainnet\', testnet otherwise', () => {
@@ -86,6 +87,70 @@ describe('isRecommendedValidator', () => {
     expect(isRecommendedValidator({ ...qualifying, feeFraction: null })).toBe(false)
     expect(isRecommendedValidator({ ...qualifying, scoreTotal: null })).toBe(false)
     expect(isRecommendedValidator({ ...qualifying, dominanceRatio: null })).toBe(false)
+  })
+})
+
+/**
+ * Fixtures mirroring the real mainnet inconsistency reported 2026-11-10:
+ * NQ05 had the highest reliability score (99%) and was the old default,
+ * but wasn't Recommended (assume it doesn't pay out directly); NQ15 and
+ * NQ32 were both Recommended but neither was the default.
+ */
+function option(overrides: Partial<ValidatorOption>): ValidatorOption {
+  return {
+    address: 'NQ00 0000 0000 0000 0000 0000 0000 0000 0000',
+    numStakers: 10,
+    healthy: true,
+    feeFraction: null,
+    scoreTotal: null,
+    dominanceRatio: null,
+    recommended: false,
+    ...overrides,
+  }
+}
+
+const nq05NotRecommended = option({ address: 'NQ05 U1RF QJNH JCS1 RDQX 4M3Y 60KR K6CN 5LKC', numStakers: 50, scoreTotal: 0.99, recommended: false })
+const nq15Recommended = option({ address: 'NQ15 HNAH YRVH DFVM YHAG BSXG 0QHK KA0Q XDR7', numStakers: 20, scoreTotal: 0.90, recommended: true })
+const nq32Recommended = option({ address: 'NQ32 1U9X 7P3X B2H5 XA00 5LC2 5KFE VBQE X3BU', numStakers: 30, scoreTotal: 0.95, recommended: true })
+
+describe('sortValidatorOptions', () => {
+  it('puts every Recommended validator before every non-Recommended one, regardless of score', () => {
+    const sorted = sortValidatorOptions([nq05NotRecommended, nq15Recommended, nq32Recommended])
+    expect(sorted.map(v => v.address)).toEqual([nq32Recommended.address, nq15Recommended.address, nq05NotRecommended.address])
+  })
+
+  it('orders within each group by score, highest first', () => {
+    const lowerScoreRecommended = option({ address: 'b', recommended: true, scoreTotal: 0.86 })
+    const sorted = sortValidatorOptions([lowerScoreRecommended, nq32Recommended])
+    expect(sorted.map(v => v.address)).toEqual([nq32Recommended.address, lowerScoreRecommended.address])
+  })
+
+  it('breaks a score tie (including both null) by more stakers first', () => {
+    const fewerStakers = option({ address: 'a', numStakers: 5 })
+    const moreStakers = option({ address: 'b', numStakers: 50 })
+    expect(sortValidatorOptions([fewerStakers, moreStakers]).map(v => v.address)).toEqual(['b', 'a'])
+  })
+})
+
+describe('pickDefaultValidator', () => {
+  it('picks the best Recommended validator over a higher-scored non-Recommended one (the reported mainnet case)', () => {
+    expect(pickDefaultValidator([nq05NotRecommended, nq15Recommended, nq32Recommended])).toBe(nq32Recommended.address)
+  })
+
+  it('falls back to the healthiest validator by stake count when none are Recommended', () => {
+    const unhealthyButBusy = option({ address: 'a', healthy: false, numStakers: 999 })
+    const healthy = option({ address: 'b', healthy: true, numStakers: 10 })
+    expect(pickDefaultValidator([unhealthyButBusy, healthy])).toBe('b')
+  })
+
+  it('falls back to the busiest validator overall when none are healthy or Recommended', () => {
+    const lessBusy = option({ address: 'a', healthy: false, numStakers: 5 })
+    const busier = option({ address: 'b', healthy: false, numStakers: 50 })
+    expect(pickDefaultValidator([lessBusy, busier])).toBe('b')
+  })
+
+  it('returns an empty string for an empty list', () => {
+    expect(pickDefaultValidator([])).toBe('')
   })
 })
 

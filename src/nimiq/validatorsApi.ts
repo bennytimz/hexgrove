@@ -61,6 +61,48 @@ export function isRecommendedValidator(entry: ValidatorDirectoryEntry): boolean 
     && entry.dominanceRatio !== null && entry.dominanceRatio < 0.10
 }
 
+/** A validator as shown in the stake sheet's chooser: chain-RPC fields plus whatever the directory added. */
+export interface ValidatorOption {
+  address: string
+  numStakers: number
+  healthy: boolean
+  feeFraction: number | null
+  scoreTotal: number | null
+  dominanceRatio: number | null
+  recommended: boolean
+}
+
+/** Shared tiebreak for "best": higher reliability score first (nulls last), then more stakers. */
+function byBest(a: ValidatorOption, b: ValidatorOption): number {
+  return (b.scoreTotal ?? -1) - (a.scoreTotal ?? -1) || b.numStakers - a.numStakers
+}
+
+/** Display order for the chooser: Recommended validators first, each group ordered by byBest. */
+export function sortValidatorOptions(list: ValidatorOption[]): ValidatorOption[] {
+  return [...list].sort((a, b) => {
+    if (a.recommended !== b.recommended)
+      return a.recommended ? -1 : 1
+    return byBest(a, b)
+  })
+}
+
+/**
+ * The validator to preselect: the best Recommended one when any qualify —
+ * the spec's Recommended tag is a hint, now also the default, not just a
+ * label next to someone else's pick. Falls back, unchanged from before
+ * Recommended existed, to the healthiest validator by stake count, then
+ * the busiest validator overall.
+ */
+export function pickDefaultValidator(list: ValidatorOption[]): string {
+  const recommended = list.filter(v => v.recommended).sort(byBest)
+  if (recommended.length)
+    return recommended[0].address
+  const healthy = list.filter(v => v.healthy).sort((a, b) => b.numStakers - a.numStakers)
+  if (healthy.length)
+    return healthy[0].address
+  return [...list].sort((a, b) => b.numStakers - a.numStakers)[0]?.address ?? ''
+}
+
 /**
  * Fetches the validator directory for the given network. Additive only:
  * never throws, and resolves to an empty array on any failure (network

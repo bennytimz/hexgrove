@@ -9,6 +9,7 @@ import {
   MOCK_TIMEOUT_DELAY_MS,
   MOCK_VALIDATOR_ADDRESS,
   MOCK_VALIDATOR_ADDRESS_2,
+  MOCK_VALIDATOR_ADDRESS_3,
   MOCK_WAITING_INACTIVE_FROM,
   MOCK_WAITING_INACTIVE_LUNA,
 } from './provider'
@@ -16,12 +17,16 @@ import {
 interface StubWindow {
   nimiq?: unknown
   nimiqPay?: unknown
+  fetch: unknown
 }
 
 let win: StubWindow
 
 beforeEach(() => {
-  win = {}
+  // A real window always has fetch; installMockFetch() wraps it. The exact
+  // response here doesn't matter — every test either hits the Validators
+  // API (intercepted) or doesn't call fetch at all.
+  win = { fetch: vi.fn().mockResolvedValue(new Response('[]', { status: 200 })) }
   vi.stubGlobal('window', win)
 })
 
@@ -132,7 +137,37 @@ describe('installMockProvider', () => {
     expect(validators).toEqual([
       { address: MOCK_VALIDATOR_ADDRESS, numStakers: 420, retired: false, inactivityFlag: null, jailedFrom: null },
       { address: MOCK_VALIDATOR_ADDRESS_2, numStakers: 12, retired: true, inactivityFlag: null, jailedFrom: null },
+      { address: MOCK_VALIDATOR_ADDRESS_3, numStakers: 90, retired: false, inactivityFlag: null, jailedFrom: null },
     ])
+  })
+
+  describe('mocked Validators API (installMockFetch)', () => {
+    it('answers a validators-api fetch with mock directory data, mirroring the reported mainnet inconsistency', async () => {
+      installMockProvider(null)
+
+      const response = await window.fetch('https://validators-api-main.je-cf9.workers.dev/api/v1/validators')
+      const body = await response.json()
+
+      expect(body).toEqual([
+        { address: MOCK_VALIDATOR_ADDRESS, fee: 0.05, payoutType: 'restake', dominanceRatio: 0.08, score: { total: 0.99 } },
+        { address: MOCK_VALIDATOR_ADDRESS_3, fee: 0.04, payoutType: 'direct', dominanceRatio: 0.02, score: { total: 0.92 } },
+      ])
+      // The higher-scored validator isn't Recommended (payoutType "restake"); the lower-scored one is ("direct").
+      expect(body[0].score.total).toBeGreaterThan(body[1].score.total)
+      expect(body[0].payoutType).not.toBe('direct')
+      expect(body[1].payoutType).toBe('direct')
+    })
+
+    it('leaves non-Validators-API fetches untouched', async () => {
+      // Captured before installMockProvider wraps window.fetch — the wrapper
+      // delegates to this same underlying mock, whose call history we check.
+      const originalFetchMock = win.fetch as ReturnType<typeof vi.fn>
+      installMockProvider(null)
+
+      await window.fetch('https://example.com/something-else')
+
+      expect(originalFetchMock).toHaveBeenCalledWith('https://example.com/something-else', undefined)
+    })
   })
 
   it('answers getPolicyConstants with the confirmed testnet minimum stake', async () => {

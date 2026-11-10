@@ -24,10 +24,19 @@ export const MOCK_BALANCES_LUNA: Readonly<Record<string, number>> = {
   [MOCK_ADDRESSES[2]]: 0,
 }
 
-/** The validator MOCK_ADDRESSES[0] delegates to — active, highest stakers, so sky reads Sunny and the chooser defaults to it. */
+/**
+ * The validator MOCK_ADDRESSES[0] delegates to — active, the most stakers,
+ * and (per the mock Validators API data below) a high reliability score
+ * but not Recommended, mirroring the real mainnet inconsistency reported
+ * 2026-11-10: the busiest, highest-scored validator isn't automatically
+ * the best pick. Sky still reads Sunny from this validator's chain-RPC
+ * health; the chooser's default is MOCK_VALIDATOR_ADDRESS_3, below.
+ */
 export const MOCK_VALIDATOR_ADDRESS = 'NQ35 MOCK VALD 0000 0000 0000 0000 0000 0001'
-/** A second, retired validator, so the chooser's "browse" list has more than one entry. */
+/** A second, retired validator, so the chooser's "browse" list includes an unhealthy one. */
 export const MOCK_VALIDATOR_ADDRESS_2 = 'NQ58 MOCK VALD 0000 0000 0000 0000 0000 0002'
+/** Active, fewer stakers than MOCK_VALIDATOR_ADDRESS, but Recommended — the chooser should default to this one. */
+export const MOCK_VALIDATOR_ADDRESS_3 = 'NQ81 MOCK VALD 0000 0000 0000 0000 0000 0003'
 
 export const MOCK_BLOCK_NUMBER = 1_000_000
 /** Inactive balance for MOCK_ADDRESSES[2]: 50 NIM, released about an hour from MOCK_BLOCK_NUMBER (1 block ~ 1 second). */
@@ -39,6 +48,18 @@ export const MOCK_TIMEOUT_DELAY_MS = 11_000
 
 /** getPolicyConstants().minimumStake, confirmed on testnet, 2026-11-09: 10,000,000 Luna = 100 NIM. */
 export const MOCK_MINIMUM_STAKE_LUNA = 10_000_000
+
+/**
+ * Mock Validators API data (src/nimiq/validatorsApi.ts), shaped like the
+ * real response confirmed 2026-11-10. MOCK_VALIDATOR_ADDRESS: high score,
+ * but payoutType "restake" keeps it off the Recommended list, the same
+ * combination seen on mainnet. MOCK_VALIDATOR_ADDRESS_3: Recommended.
+ * MOCK_VALIDATOR_ADDRESS_2 has no entry (retired, undirectoried, realistic).
+ */
+const MOCK_VALIDATORS_DIRECTORY = [
+  { address: MOCK_VALIDATOR_ADDRESS, fee: 0.05, payoutType: 'restake', dominanceRatio: 0.08, score: { total: 0.99 } },
+  { address: MOCK_VALIDATOR_ADDRESS_3, fee: 0.04, payoutType: 'direct', dominanceRatio: 0.02, score: { total: 0.92 } },
+]
 
 function notImplemented(method: string) {
   return async (): Promise<never> => {
@@ -209,6 +230,7 @@ export function createMockProvider(failMode: MockFailMode, noStake = false) {
         return [
           { address: MOCK_VALIDATOR_ADDRESS, numStakers: 420, retired: false, inactivityFlag: null, jailedFrom: null },
           { address: MOCK_VALIDATOR_ADDRESS_2, numStakers: 12, retired: true, inactivityFlag: null, jailedFrom: null },
+          { address: MOCK_VALIDATOR_ADDRESS_3, numStakers: 90, retired: false, inactivityFlag: null, jailedFrom: null },
         ] as T
       }
       if (args.method === 'getPolicyConstants') {
@@ -234,10 +256,32 @@ function mockHostContext(): NimiqPayHostContext {
   }
 }
 
+/**
+ * The real Validators API is a separate service (src/nimiq/validatorsApi.ts)
+ * that `fetch()` reaches directly, not through window.nimiq — so mocking it
+ * means intercepting `window.fetch` itself, scoped to that one host, so
+ * every other fetch behaves exactly as it would without the mock.
+ */
+function installMockFetch(): void {
+  const originalFetch = window.fetch.bind(window)
+  window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url
+    if (url.includes('validators-api')) {
+      return Promise.resolve(new Response(JSON.stringify(MOCK_VALIDATORS_DIRECTORY), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }))
+    }
+    return originalFetch(input, init)
+  }
+}
+
 export function installMockProvider(failMode: MockFailMode, noStake = false): void {
   // A plain mock object can never satisfy window.nimiq's declared type (a
   // class with a private field), so the escape hatch is local to this file.
   const win = window as unknown as { nimiq?: unknown, nimiqPay?: unknown }
+
+  installMockFetch()
 
   if (failMode === 'notinpay') {
     console.info('[mock] Simulating "not inside Nimiq Pay": window.nimiq will never be injected.')

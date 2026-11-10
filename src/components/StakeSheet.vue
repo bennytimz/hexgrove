@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { TxOutcome } from '../lib/txOutcome'
 import type { NimiqProvider } from '../nimiq/provider'
-import type { ValidatorDirectoryEntry } from '../nimiq/validatorsApi'
+import type { ValidatorDirectoryEntry, ValidatorOption } from '../nimiq/validatorsApi'
 import { computed, onMounted, ref } from 'vue'
 import { formatNim, nimToLuna } from '../lib/luna'
 import { compactAddress, isValidatorHealthy } from '../lib/sky'
 import { classifyStakeRecheck, classifyTxError, TX_OUTCOME_COPY } from '../lib/txOutcome'
 import { getHostNetwork, getProvider, rpcUrlForNetwork } from '../nimiq/provider'
 import { readCombinedStaker } from '../nimiq/staker'
-import { fetchValidatorsDirectory, isRecommendedValidator } from '../nimiq/validatorsApi'
+import { fetchValidatorsDirectory, isRecommendedValidator, pickDefaultValidator, sortValidatorOptions } from '../nimiq/validatorsApi'
 
 const props = defineProps<{
   addresses: string[]
@@ -28,17 +28,6 @@ type Phase = 'loading' | 'form' | 'sending' | 'confirming' | 'success' | 'sentPe
 const phase = ref<Phase>('loading')
 const loadError = ref(false)
 const minimumLuna = ref<bigint | null>(null)
-
-interface ValidatorOption {
-  address: string
-  numStakers: number
-  healthy: boolean
-  /** From the Validators API (src/nimiq/validatorsApi.ts) — null when it's unreachable or has no entry for this validator. Additive: the chooser works the same without it. */
-  feeFraction: number | null
-  scoreTotal: number | null
-  dominanceRatio: number | null
-  recommended: boolean
-}
 
 const validators = ref<ValidatorOption[]>([])
 const selectedValidator = ref('')
@@ -134,13 +123,6 @@ function mergeDirectory(chainValidators: ValidatorOption[], directory: Validator
   })
 }
 
-function pickDefaultValidator(list: ValidatorOption[]): string {
-  const healthy = list.filter(v => v.healthy).sort((a, b) => b.numStakers - a.numStakers)
-  if (healthy.length)
-    return healthy[0].address
-  return [...list].sort((a, b) => b.numStakers - a.numStakers)[0]?.address ?? ''
-}
-
 async function loadForm() {
   phase.value = 'loading'
   loadError.value = false
@@ -169,12 +151,13 @@ async function loadForm() {
     ])
     minimumLuna.value = typeof policy?.minimumStake === 'number' ? BigInt(policy.minimumStake) : null
     directoryUnavailable.value = directory.length === 0
-    validators.value = mergeDirectory(parseValidators(rawValidators), directory)
-    if (!validators.value.length) {
+    const merged = mergeDirectory(parseValidators(rawValidators), directory)
+    if (!merged.length) {
       loadError.value = true
       return
     }
-    selectedValidator.value = pickDefaultValidator(validators.value)
+    validators.value = sortValidatorOptions(merged)
+    selectedValidator.value = pickDefaultValidator(merged)
     defaultValidatorAddress.value = selectedValidator.value
     phase.value = 'form'
   }

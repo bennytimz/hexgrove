@@ -78,6 +78,8 @@ const skyCondition = ref<SkyCondition>(initialSky.condition)
 const skyLabel = ref(initialSky.label)
 /** Estimated reward over the next year at the current rate and the validator's fee (src/lib/yield.ts). Null hides the line entirely — never a placeholder. */
 const yearlyRewardLuna = ref<number | null>(null)
+/** The delegated validator's fee, read alongside the estimate above. Null hides the stat strip's third column's fee fallback — never a placeholder. */
+const validatorFeeFraction = ref<number | null>(null)
 
 const watered = ref(false)
 const streak = ref(0)
@@ -87,6 +89,42 @@ const muted = ref(localStorage.getItem(MUTED_STORAGE_KEY) === '1')
 const previewing = ref(false)
 function togglePreview() {
   previewing.value = !previewing.value
+}
+
+/** Bottom-nav "Stake" tab: a menu of the existing stake actions once there's something to manage, otherwise straight into creating one. */
+const stakeMenuOpen = ref(false)
+function openStakeTab() {
+  if (combinedState.value === 'staked')
+    stakeMenuOpen.value = true
+  else
+    stakeSheetMode.value = 'create'
+}
+
+const helpSheetOpen = ref(false)
+
+/** Opens the native share sheet with this app's URL; falls back to copying the link, and is silent if neither is available. */
+async function shareApp() {
+  const shareData = { title: 'Hexgrove', text: 'Stake NIM. Grow a garden.', url: location.href }
+  if (navigator.share) {
+    try {
+      await navigator.share(shareData)
+    }
+    catch {
+      // Cancelled by the user, or unsupported in this context — nothing to show for either.
+    }
+    return
+  }
+  try {
+    await navigator.clipboard?.writeText(location.href)
+  }
+  catch {
+    // No share API and no clipboard access — nothing left to try.
+  }
+}
+
+/** 0.0523 → "5.2%". Matches StakeSheet.vue's own formatFraction, kept local since it's a one-line format helper, not shared logic. */
+function formatFraction(fraction: number): string {
+  return `${(fraction * 100).toFixed(fraction < 0.01 ? 1 : 0)}%`
 }
 
 /** All Seed stage: growth and species await reward reading, a later build step. */
@@ -215,6 +253,7 @@ async function loadSky(nimiq: NimiqProvider, delegation: string | null) {
     skyCondition.value = state.condition
     skyLabel.value = state.label
     yearlyRewardLuna.value = null
+    validatorFeeFraction.value = null
     return
   }
 
@@ -237,7 +276,8 @@ async function loadSky(nimiq: NimiqProvider, delegation: string | null) {
       (Array.isArray(validators) ? validators : []) as ActiveValidatorFields[],
       isValidatorHealthy,
     )
-    const rate = validatorRate(networkRate(Date.now(), activeStakeLuna), directoryEntry?.feeFraction ?? null)
+    validatorFeeFraction.value = directoryEntry?.feeFraction ?? null
+    const rate = validatorRate(networkRate(Date.now(), activeStakeLuna), validatorFeeFraction.value)
     yearlyRewardLuna.value = estimatedYearlyRewardLuna(Number(earningLuna.value), rate)
   }
   catch (error) {
@@ -246,6 +286,7 @@ async function loadSky(nimiq: NimiqProvider, delegation: string | null) {
     skyCondition.value = state.condition
     skyLabel.value = state.label
     yearlyRewardLuna.value = null
+    validatorFeeFraction.value = null
   }
 }
 
@@ -440,6 +481,20 @@ onMounted(connect)
             </template>
           </svg>
         </button>
+        <button v-if="phase === 'ready'" class="icon-btn" type="button" aria-label="Share Hexgrove" @click="shareApp">
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3v12" />
+            <path d="M7 8l5-5 5 5" />
+            <path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+          </svg>
+        </button>
+        <button v-if="phase === 'ready'" class="icon-btn" type="button" aria-label="How it works" @click="helpSheetOpen = true">
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M9.5 9.5a2.5 2.5 0 0 1 4.8 1c0 1.5-2.3 1.6-2.3 3.3" />
+            <circle cx="12" cy="17" r="0.1" fill="currentColor" stroke-width="2.5" />
+          </svg>
+        </button>
       </div>
     </div>
 
@@ -504,7 +559,7 @@ onMounted(connect)
       </button>
     </section>
 
-    <section v-else-if="phase === 'ready'" class="panel">
+    <section v-else-if="phase === 'ready'" class="home">
       <p v-if="combinedState === 'loading'" class="status">
         Loading your accounts…
       </p>
@@ -519,27 +574,23 @@ onMounted(connect)
       </template>
 
       <template v-else>
-        <div class="stat">
-          <small>Spendable</small>
-          <template v-if="spendableLoadFailed">
-            <span class="hint" role="alert">Can't load this right now.</span>
-            <button class="btn-ghost" type="button" @click="loadCombined">
-              Try again
-            </button>
-          </template>
-          <b v-else-if="!spendableUnsupported">{{ formatNim(spendableLuna) }} NIM</b>
-          <span v-else class="hint">Update Nimiq Pay to see this.</span>
+        <div class="subbar">
+          <span v-if="spendableLoadFailed" class="hint" role="alert">Spendable: can't load this right now.</span>
+          <span v-else-if="spendableUnsupported" class="hint">Spendable: update Nimiq Pay to see this.</span>
+          <span v-else class="hint">Spendable: {{ formatNim(spendableLuna) }} NIM</span>
+          <button v-if="spendableLoadFailed" class="linklike" type="button" @click="loadCombined">
+            Try again
+          </button>
+          <button v-else class="linklike" type="button" @click="togglePreview">
+            {{ previewing ? 'Exit preview' : 'Preview a mature garden' }}
+          </button>
         </div>
-
-        <button class="btn-ghost" type="button" @click="togglePreview">
-          {{ previewing ? 'Exit preview' : 'Preview a mature garden' }}
-        </button>
 
         <template v-if="previewing">
           <div class="preview-banner" role="status">
             Preview: a sample garden, not yours
           </div>
-          <HexGarden :plants="PREVIEW_PLANTS" :watered="true" sky-condition="sunny" sky-label="Sample conditions" />
+          <HexGarden class="hero" :plants="PREVIEW_PLANTS" :watered="true" sky-condition="sunny" sky-label="Sample conditions" />
         </template>
 
         <template v-else-if="combinedState === 'staked'">
@@ -549,51 +600,57 @@ onMounted(connect)
           </div>
 
           <HexGarden
+            class="hero"
             :plants="realPlants" :watered="watered" :pulse="pulse"
             :sky-condition="skyCondition" :sky-label="skyLabel"
             :locked-plots="lockedInfo?.count ?? 0" :unlock-hint="lockedInfo?.hint"
           />
 
-          <div class="stat">
-            <small>Staked and earning</small>
-            <b>{{ formatNim(earningLuna) }} NIM</b>
+          <div class="stats">
+            <div class="stat">
+              <small>Staked</small>
+              <b>{{ formatNim(earningLuna) }} NIM</b>
+            </div>
+            <div v-if="yearlyRewardLuna !== null" class="stat">
+              <small>Estimated per year</small>
+              <b class="secondary">~{{ formatYearlyEstimate(yearlyRewardLuna) }} NIM</b>
+            </div>
+            <div v-if="waitingLuna > 0n" class="stat">
+              <small>{{ waitingPhase === 'ready' ? 'Ready to withdraw' : 'Waiting to withdraw' }}</small>
+              <b class="secondary">{{ formatNim(waitingLuna) }} NIM</b>
+            </div>
+            <div v-else-if="releasedLuna > 0n" class="stat">
+              <small>Released</small>
+              <b class="secondary">{{ formatNim(releasedLuna) }} NIM</b>
+            </div>
+            <div v-else-if="validatorFeeFraction !== null" class="stat">
+              <small>Validator fee</small>
+              <b class="secondary">{{ formatFraction(validatorFeeFraction) }}</b>
+            </div>
           </div>
-          <div v-if="yearlyRewardLuna !== null" class="stat">
-            <small>Estimated per year</small>
-            <b class="secondary">~{{ formatYearlyEstimate(yearlyRewardLuna) }} NIM</b>
-            <span class="hint">Estimate, never guaranteed. Based on your validator's fee and the network's current stake.</span>
-          </div>
-          <div v-if="waitingLuna > 0n" class="stat">
-            <small>{{ waitingPhase === 'ready' ? 'Ready to withdraw' : 'Waiting to withdraw' }}</small>
-            <b class="secondary">{{ formatNim(waitingLuna) }} NIM</b>
-            <span class="hint">{{ waitingText }}</span>
-            <span v-if="waitingCaveat" class="hint">{{ waitingCaveat }}</span>
-          </div>
-          <div v-if="releasedLuna > 0n" class="stat">
-            <small>Released</small>
-            <b>{{ formatNim(releasedLuna) }} NIM</b>
-            <span class="hint">Almost done. Your first approval went through. One more approval moves your {{ formatNim(releasedLuna) }} NIM to your wallet.</span>
-          </div>
+
+          <p v-if="yearlyRewardLuna !== null" class="hint">
+            Estimate, never guaranteed. Based on your validator's fee and the network's current stake.
+          </p>
+          <p v-if="waitingLuna > 0n" class="hint">
+            {{ waitingCaveat ? `${waitingText} ${waitingCaveat}` : waitingText }}
+          </p>
+          <p v-else-if="releasedLuna > 0n" class="hint">
+            Almost done. Your first approval went through. One more approval moves your {{ formatNim(releasedLuna) }} NIM to your wallet.
+          </p>
           <p class="hint">
             {{ stakeHolders.length > 1 ? 'Held across' : 'Held by' }} {{ stakeHolders.map(shortAddr).join(', ') }}
           </p>
 
-          <button v-if="!watered" class="btn-primary" type="button" @click="onWaterClick">
-            Water garden
-          </button>
-          <button v-else class="btn-quiet" type="button" disabled>
-            Watered
-          </button>
+          <div class="actions">
+            <button v-if="!watered" class="btn-primary" type="button" @click="onWaterClick">
+              Water garden
+            </button>
+            <button v-else class="btn-quiet" type="button" disabled>
+              Watered
+            </button>
+          </div>
           <p class="hint">Watering is just for fun. It never changes your rewards.</p>
-          <button class="btn-ghost" type="button" @click="stakeSheetMode = 'add'">
-            Add stake
-          </button>
-          <button v-if="earningLuna > 0n" class="btn-ghost" type="button" @click="stopEarningSheetOpen = true">
-            Stop earning
-          </button>
-          <button v-if="readyToWithdraw || releasedLuna > 0n" class="btn-ghost" type="button" @click="withdrawSheetOpen = true">
-            {{ releasedLuna > 0n ? 'Finish withdrawing' : 'Withdraw' }}
-          </button>
         </template>
 
         <template v-else-if="combinedState === 'hidden'">
@@ -612,12 +669,65 @@ onMounted(connect)
               ? `Staking needs at least ${formatNim(minimumStakeLuna)} NIM. You have ${formatNim(spendableLuna)} NIM.`
               : `Staking needs at least ${formatNim(minimumStakeLuna)} NIM.` }}
           </p>
-          <button class="btn-primary" type="button" @click="stakeSheetMode = 'create'">
-            Stake
-          </button>
+          <div class="actions">
+            <button class="btn-primary" type="button" @click="stakeSheetMode = 'create'">
+              Stake
+            </button>
+          </div>
         </template>
       </template>
+
+      <nav class="tabs" aria-label="Main">
+        <button class="tab" type="button" aria-current="page">
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2l8.5 5v10L12 22l-8.5-5V7z" />
+          </svg>
+          Garden
+        </button>
+        <button class="tab" type="button" @click="openStakeTab">
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="10" width="16" height="4" rx="1.5" />
+            <rect x="4" y="16" width="16" height="4" rx="1.5" />
+            <path d="M9 10V7a3 3 0 0 1 6 0v3" />
+          </svg>
+          Stake
+        </button>
+      </nav>
     </section>
+
+    <div v-if="stakeMenuOpen" class="scrim" @click.self="stakeMenuOpen = false">
+      <div class="sheet" role="dialog" aria-label="Stake" aria-modal="true">
+        <button class="closebtn" type="button" aria-label="Close" @click="stakeMenuOpen = false">
+          ×
+        </button>
+        <h2>Stake</h2>
+        <button class="btn-ghost full" type="button" @click="stakeMenuOpen = false; stakeSheetMode = 'add'">
+          Add stake
+        </button>
+        <button v-if="earningLuna > 0n" class="btn-ghost full" type="button" @click="stakeMenuOpen = false; stopEarningSheetOpen = true">
+          Stop earning
+        </button>
+        <button v-if="readyToWithdraw || releasedLuna > 0n" class="btn-ghost full" type="button" @click="stakeMenuOpen = false; withdrawSheetOpen = true">
+          {{ releasedLuna > 0n ? 'Finish withdrawing' : 'Withdraw' }}
+        </button>
+      </div>
+    </div>
+
+    <div v-if="helpSheetOpen" class="scrim" @click.self="helpSheetOpen = false">
+      <div class="sheet" role="dialog" aria-label="How it works" aria-modal="true">
+        <button class="closebtn" type="button" aria-label="Close" @click="helpSheetOpen = false">
+          ×
+        </button>
+        <h2>How it works</h2>
+        <p>Three signals drive the garden, and each one reads real data, not a placeholder.</p>
+        <h3>Plots from your stake</h3>
+        <p class="hint">The number of hex plots is set by how much NIM is actively earning, read live from your staker record on chain every time the app opens.</p>
+        <h3>Sky from your validator's health</h3>
+        <p class="hint">The weather above the garden reflects the validator you're delegated to. Never shown as stormy just because a fetch failed.</p>
+        <h3>Watering, for fun only</h3>
+        <p class="hint">One tap a day keeps a streak going and gives the garden a small glow. It never changes rewards.</p>
+      </div>
+    </div>
 
     <StakeSheet
       v-if="stakeSheetMode"
@@ -757,15 +867,153 @@ onMounted(connect)
   gap: 12px;
 }
 
-.panel h1 {
+.panel h1,
+.home h1 {
   margin: 0;
   font-size: 19px;
 }
 
-.panel p {
+.panel p,
+.home p {
   margin: 0;
   color: var(--mist);
   line-height: 1.5;
+}
+
+.home {
+  width: 100%;
+  max-width: 430px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 16px;
+}
+
+.subbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.linklike {
+  min-height: 44px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--gold-soft);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.hero {
+  margin: 0 -16px;
+  flex: 1;
+  min-height: 300px;
+}
+
+.actions {
+  display: flex;
+}
+
+.actions .btn-primary,
+.actions .btn-quiet {
+  flex: 1;
+}
+
+.tabs {
+  margin: 0 -16px;
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  border-top: 1px solid var(--line);
+  background: #0a1029;
+}
+
+.tab {
+  min-height: 56px;
+  border: 0;
+  background: transparent;
+  color: var(--mist);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tab[aria-current='page'] {
+  color: var(--gold);
+}
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 6, 20, .62);
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sheet {
+  position: relative;
+  width: 100%;
+  max-width: 430px;
+  max-height: 88dvh;
+  overflow: auto;
+  background: var(--deep);
+  color: var(--text);
+  border-radius: 22px 22px 0 0;
+  padding: 20px 20px 28px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sheet h2 {
+  margin: 0 0 4px;
+  font-size: 21px;
+  padding-right: 36px;
+}
+
+.sheet h3 {
+  margin: 8px 0 0;
+  font-size: 15px;
+  color: var(--mist);
+  font-weight: 700;
+}
+
+.sheet p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.closebtn {
+  position: absolute;
+  right: 8px;
+  top: 12px;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--mist);
+  font-size: 24px;
+  cursor: pointer;
+  border-radius: 50%;
+}
+
+.btn-ghost.full {
+  width: 100%;
 }
 
 .status {
@@ -823,10 +1071,25 @@ onMounted(connect)
   cursor: default;
 }
 
+.stats {
+  display: flex;
+  padding: 4px 0;
+}
+
 .stat {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+}
+
+.stat:first-child {
+  flex: 1.35;
+  padding-left: 0;
+  border-left: 0;
 }
 
 .stat small {
@@ -837,11 +1100,22 @@ onMounted(connect)
 .stat b {
   font-size: 23px;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .stat b.secondary {
   font-size: 15px;
   font-weight: 600;
   color: var(--mist);
+  white-space: normal;
+}
+
+@media (max-width: 340px) {
+  .stat:first-child b {
+    font-size: 19px;
+  }
+  .stat b.secondary {
+    font-size: 13px;
+  }
 }
 </style>

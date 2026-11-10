@@ -555,14 +555,16 @@ onMounted(connect)
           />
 
           <div class="stat">
-            <small>Earning</small>
+            <small>Staked and earning</small>
             <b>{{ formatNim(earningLuna) }} NIM</b>
-            <span v-if="yearlyRewardLuna !== null" class="hint">
-              About {{ formatYearlyEstimate(yearlyRewardLuna) }} NIM a year at your validator's fee. Estimate, never guaranteed.
-            </span>
+          </div>
+          <div v-if="yearlyRewardLuna !== null" class="stat">
+            <small>Estimated per year</small>
+            <b>About {{ formatYearlyEstimate(yearlyRewardLuna) }} NIM</b>
+            <span class="hint">Estimate, never guaranteed. Based on your validator's fee and the network's current stake.</span>
           </div>
           <div v-if="waitingLuna > 0n" class="stat">
-            <small>{{ waitingPhase === 'ready' ? 'Ready to withdraw' : 'Waiting' }}</small>
+            <small>{{ waitingPhase === 'ready' ? 'Ready to withdraw' : 'Waiting to withdraw' }}</small>
             <b>{{ formatNim(waitingLuna) }} NIM</b>
             <span class="hint">{{ waitingText }}</span>
             <span v-if="waitingCaveat" class="hint">{{ waitingCaveat }}</span>

@@ -122,9 +122,10 @@ async function shareApp() {
   }
 }
 
-/** 0.0523 → "5.2%". Matches StakeSheet.vue's own formatFraction, kept local since it's a one-line format helper, not shared logic. */
-function formatFraction(fraction: number): string {
-  return `${(fraction * 100).toFixed(fraction < 0.01 ? 1 : 0)}%`
+/** 0.025 → "2.5%", 0.05 → "5%". One decimal only when the fee isn't a whole percent. Matches StakeSheet.vue's formatFeePercent, kept local since it's a one-line format helper, not shared logic. */
+function formatFeePercent(fraction: number): string {
+  const percent = Math.round(fraction * 1000) / 10
+  return `${Number.isInteger(percent) ? percent : percent.toFixed(1)}%`
 }
 
 /** All Seed stage: growth and species await reward reading, a later build step. */
@@ -612,7 +613,7 @@ onMounted(connect)
               <b>{{ formatNim(earningLuna) }} NIM</b>
             </div>
             <div v-if="yearlyRewardLuna !== null" class="stat">
-              <small>Estimated per year</small>
+              <small>Est. per year</small>
               <b class="secondary">~{{ formatYearlyEstimate(yearlyRewardLuna) }} NIM</b>
             </div>
             <div v-if="waitingLuna > 0n" class="stat">
@@ -625,7 +626,7 @@ onMounted(connect)
             </div>
             <div v-else-if="validatorFeeFraction !== null" class="stat">
               <small>Validator fee</small>
-              <b class="secondary">{{ formatFraction(validatorFeeFraction) }}</b>
+              <b class="secondary">{{ formatFeePercent(validatorFeeFraction) }}</b>
             </div>
           </div>
 
@@ -1095,6 +1096,7 @@ onMounted(connect)
 .stat small {
   color: var(--mist);
   font-size: 12.5px;
+  white-space: nowrap;
 }
 
 .stat b {

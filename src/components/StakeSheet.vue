@@ -72,11 +72,17 @@ function formatFraction(fraction: number): string {
   return `${(fraction * 100).toFixed(fraction < 0.01 ? 1 : 0)}%`
 }
 
+/** 0.025 → "2.5%", 0.05 → "5%". One decimal only when the fee isn't a whole percent. */
+function formatFeePercent(fraction: number): string {
+  const percent = Math.round(fraction * 1000) / 10
+  return `${Number.isInteger(percent) ? percent : percent.toFixed(1)}%`
+}
+
 /** The optional second line under a validator's Active/Not active status, when the Validators API has data for it. */
 function validatorMetaLine(v: ValidatorOption): string {
   const parts: string[] = []
   if (v.feeFraction !== null)
-    parts.push(`${formatFraction(v.feeFraction)} fee`)
+    parts.push(`${formatFeePercent(v.feeFraction)} fee`)
   if (v.scoreTotal !== null)
     parts.push(`${formatFraction(v.scoreTotal)} reliability`)
   if (v.dominanceRatio !== null)

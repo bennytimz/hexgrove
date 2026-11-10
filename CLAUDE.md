@@ -4,6 +4,7 @@ Hexgrove is a Nimiq Pay mini app for the Earn category of the Nimiq Mini Apps Co
 
 ## Source of truth
 
+- `docs/SESSION.md` is the handoff file. Read it first, every new session.
 - `docs/SPEC.md` holds every decision, rule, screen state, error message and open question. Read it before changing anything.
 - `docs/hexgrove-mockup.html` is the visual and interaction reference. It is one file with sample data. Port the design and behavior, not its code structure.
 - If the spec and the mockup disagree, ask me which one is right.

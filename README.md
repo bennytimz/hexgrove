@@ -1,24 +1,37 @@
 # Hexgrove
 
-A Nimiq Pay mini app where staking NIM grows a garden of hex plots. Built for the Nimiq Mini Apps Competition, Cycle 3 (Earn).
+Hexgrove is a Nimiq Pay mini app: stake NIM, and a garden of hexagonal plots grows alongside it, drawn straight from your real stake on chain. Built for the Earn category of the Nimiq Mini Apps Competition, Cycle 3.
 
 "Stake NIM. Grow a garden."
 
-See [`docs/SPEC.md`](docs/SPEC.md) for the full product spec and [`docs/hexgrove-mockup.html`](docs/hexgrove-mockup.html) for the visual and interaction reference.
+**Live:** https://hexgrove.vercel.app/
+**Spec:** [`docs/SPEC.md`](docs/SPEC.md) (every decision, rule and confirmed fact)
+**Mockup:** [`docs/hexgrove-mockup.html`](docs/hexgrove-mockup.html) (the visual and interaction reference)
+**License:** MIT, see [`LICENSE`](LICENSE)
 
-## Status
+## How it works
 
-Connect screen, read-only home screen (combined stake across every account, garden of hex plots, watering, sound, sky from the validator you're delegated to), and the real staking flow: create a staker or add to one from the **Stake** / **Add stake** buttons, confirmed on testnet. **Stop earning** and **Withdraw** are also built, but **UNVERIFIED** — against nimiq.dev's documented (not yet chain-tested) unstaking rules, never exercised against a real unstaking wait. See `docs/SPEC.md`, "Unstaking timing" and open question 13.
+Three signals drive the garden, and each one reads real data, not a placeholder:
 
-Confirmed working on a real phone (iPhone, Nimiq Pay, testnet, 2026-11-09): the plain-http LAN Custom URL, `listAccounts`, `getBalance`, and `getHostNetwork`. The staking flow (`sendNewStakerTransaction`, `sendStakeTransaction`, and the error outcomes) is built against confirmed testnet behavior (see `docs/SPEC.md`) but not yet re-confirmed live in Nimiq Pay on a phone.
+- **Plots from your stake.** The number of hex plots is set by how much NIM is actively earning, read live from your staker record on chain every time the app opens.
+- **Sky from your validator's health.** The weather above the garden (sunny, cloudy, stormy or dusk) reflects the validator you're delegated to: active, jailed or retired comes straight from the chain, and a reliability score layers on top when Nimiq's Validators API is reachable. Never shown as a raw number, and never shown as stormy just because a fetch failed.
+- **Watering, for fun only.** One tap a day keeps a streak going and gives the garden a small glow. It never changes rewards, and the app says so everywhere watering appears.
 
-**Mainnet is UNVERIFIED.** Everything above was built and tested only on testnet. The app now picks its RPC endpoint from `getHostNetwork()` rather than always using testnet's (see "Nimiq calls used" below), but the mainnet endpoint itself has never been reached from this app. See "Testing on mainnet" below and `docs/SPEC.md`, open question 12.
+Growth stage and plant species are not yet driven by rewards earned. Every plot currently renders as a seed. See Roadmap.
 
-## Live URL
+## What's verified, and what isn't
 
-**https://hexgrove.vercel.app/**
+Everything here has been built against confirmed or documented behavior, never guessed. Some of it has been run on a real phone; some hasn't yet. This table is the honest summary; `docs/SPEC.md` has the dated, sourced detail behind every row.
 
-Deployed on Vercel, connected to this GitHub repo: every push to `main` redeploys automatically. To open it in Nimiq Pay: **Mini Apps → Custom URL** → paste the URL above.
+| Area | Testnet | Mainnet |
+| --- | --- | --- |
+| Connect, accounts, balance | Confirmed on a real phone | Confirmed on a real phone |
+| Create a stake, add to a stake | Confirmed on a real phone | Built, not yet sent on a real phone |
+| Validator list, minimum stake, Validators API | Confirmed on a real phone | Read paths confirmed on a real phone (fee, reliability and a Recommended tag all showed correctly). No mainnet transaction sent yet |
+| Stop earning, withdraw | Built, **UNVERIFIED**: never exercised against a real unstaking wait | Built, **UNVERIFIED** |
+| The waiting countdown, the release timing | Based on nimiq.dev's documented rules, **UNVERIFIED** on chain | Same |
+
+"Unverified" never means "untested against expected behavior": it means built exactly to documented or confirmed rules, but not yet exercised on that specific network. See `docs/SPEC.md`'s open questions for the exact gaps and how to close them.
 
 ## Setup
 
@@ -26,7 +39,7 @@ Deployed on Vercel, connected to this GitHub repo: every push to `main` redeploy
 npm install
 ```
 
-## Run it
+## Run it locally
 
 ```bash
 npm run dev -- --host
@@ -43,136 +56,120 @@ http://192.168.1.42:5173
 Two ways, both work with this dev server (`server.host` and `server.allowedHosts` are both set to `true` in `vite.config.ts`, dev only):
 
 1. **Same Wi-Fi (LAN URL).** In Nimiq Pay, go to **Mini Apps → Custom URL**, and enter the Network URL from the terminal, e.g. `http://192.168.1.42:5173`.
-2. **HTTPS tunnel.** If your phone isn't on the same network, run a tunnel (e.g. `ngrok http 5173`, or Cloudflare's `cloudflared tunnel --url http://localhost:5173`) and enter the `https://` URL it gives you into **Mini Apps → Custom URL** instead. `allowedHosts: true` means Vite will accept requests through the tunnel's hostname.
+2. **HTTPS tunnel.** If your phone isn't on the same network, run a tunnel (e.g. `ngrok http 5173`, or Cloudflare's `cloudflared tunnel --url http://localhost:5173`) and enter the `https://` URL it gives you into **Mini Apps → Custom URL** instead.
+3. **The deployed URL.** Open **Mini Apps → Custom URL** and paste **https://hexgrove.vercel.app/**. No dev server needed.
 
-**Confirmed:** a plain `http://` LAN Custom URL works inside Nimiq Pay (tested on an iPhone, testnet). The HTTPS tunnel option above is still there for when your phone isn't on the same network.
+**Confirmed:** a plain `http://` LAN Custom URL works inside Nimiq Pay (tested on an iPhone, testnet). The HTTPS tunnel option is there for when your phone isn't on the same network.
 
 ### What you should see
 
 - Briefly, "Connecting to Nimiq Pay…".
 - If Nimiq Pay is still syncing: "Nimiq Pay is still syncing" with a **Try again** button.
-- If more than one account exists in the wallet: a list to choose one; with a single account, it's selected automatically.
-- Once connected: the **Hexgrove** brand mark, a **Testnet** badge (if Nimiq Pay is on testnet), your account address, and your balance in NIM (with thousands separators, e.g. "110,000 NIM").
-- If anything fails along the way (declined account access, no provider, a balance lookup error), a plain-language message and a **Try again** button — never a blank screen.
+- Once connected: the **Hexgrove** brand mark, a **Testnet** badge (if Nimiq Pay is on testnet), your spendable balance, and the garden if you're already staked.
+- If anything fails along the way (declined account access, no provider, a balance lookup error), a plain-language message and a **Try again** button, never a blank screen.
 
-Opening the same URL in a regular desktop browser (outside Nimiq Pay) should show "Open Hexgrove in Nimiq Pay" with an **Open in Nimiq Pay** button and a **Try again** button.
+Opening the same URL in a regular desktop browser (outside Nimiq Pay) should show "Open Hexgrove in Nimiq Pay" with an **Open in Nimiq Pay** button.
 
-## Staking flow
+## Testing on testnet
 
-From the home screen, **Stake** (no stake yet) or **Add stake** (already staked) opens a sheet with an amount field and, for a new stake, a validator chooser. Approve the transaction in Nimiq Pay when prompted; the sheet polls the chain and updates the garden once the stake shows.
+1. In Nimiq Pay, long-press the settings button for 10 seconds to open the dev menu, and switch to testnet.
+2. Copy your testnet address, and get test NIM from a testnet faucet (testnet NIM has no value, and can't move to mainnet).
+3. Open the app as described above, on testnet.
+4. From the home screen: **Stake** (minimum 100 NIM, read live, confirmed) creates a staker; **Add stake** adds to one. A validator is picked for you, with fee, reliability and network share shown when available, but you can browse and choose any active one.
+5. **Stop earning** and **Withdraw** are built but UNVERIFIED. If you try them, use a small amount, expect the documented wait (about 12 to 24 hours depending on timing), and please report back what actually happened; see `docs/SPEC.md`'s open question 13.
 
-The validator chooser shows each pool's fee, reliability score and share of the network when Nimiq's Validators API (`src/nimiq/validatorsApi.ts`) is reachable, with a **Recommended** tag for pools that meet the spec's criteria, and marks which one was auto-selected as the default. This is additive: if that API is unreachable or returns nothing, the chooser falls back to the chain's plain active/not-active signal and shows "Fee and reliability aren't available right now" — on a real phone, mainnet, 2026-11-10, this fallback is exactly what happened (CORS and address-format were both checked and ruled out; see `docs/SPEC.md`'s testnet/mainnet observations for what's still unconfirmed).
+## Testing on mainnet (read paths confirmed, transactions unverified)
 
-Testnet NIM has no value — get some from a testnet faucet first if your wallet is empty. The minimum to create a new staker is read live from the chain (confirmed as 100 NIM on testnet); adding to an existing staker has no separate minimum.
+A real phone test already confirmed the read paths: spendable balance, staker record, the live minimum stake, the validator list, and fee/reliability/Recommended data from the Validators API all showed correctly on mainnet. No mainnet transaction (stake, stop earning or withdraw) has been sent from this app yet, so treat any approval as untested until you've tried it yourself.
 
-## Stop earning and withdraw (UNVERIFIED)
-
-Built against [nimiq.dev/protocol/validators/stakers](https://nimiq.dev/protocol/validators/stakers)'s documented rules, not yet confirmed on testnet — see `docs/SPEC.md`, "Unstaking timing" and open question 13.
-
-**Stop earning**, from the "Stop earning" button on an earning stake: pick 25/50/75/100% or type an amount. Deliberately conservative — it only allows leaving the active balance at 0 or at least the minimum stake (never an in-between amount), since `sendSetActiveStakeTransaction` takes an absolute target and the documented rules say an invalid target can get rejected in a way that blocks the wallet from sending anything else for up to 2 hours.
-
-**Withdraw**, from the "Withdraw" button (shown once the release block has documented-but-unconfirmed passed) or "Finish withdrawing" (shown if a previous attempt's second step didn't complete): two sequential Nimiq Pay approvals, `sendRetireStakeTransaction` then `sendRemoveStakeTransaction` with the entire retired balance, never both at once. Reopening the sheet always re-reads the chain fresh, so it resumes correctly even if you close it mid-way.
-
-To actually verify this on testnet: stop earning on a small amount, wait for the documented release block (inactiveFrom + blocksPerEpoch — about 12 hours on testnet, read live, never hardcoded), then withdraw both steps. Report back whether the timing matched, and whether both approvals went through as expected.
-
-## Testing on mainnet (read paths only)
-
-Mainnet is UNVERIFIED (see Status above). This checks the read paths only — **don't approve any transaction yet**, since create-staker and add-stake have never been tried against the mainnet RPC, and a real approval spends real NIM and fees.
-
-1. Switch Nimiq Pay's own account to mainnet, then open the same mini app URL (live or Custom URL) as usual. Use an account that has never staked, so the home screen has nothing to lose by getting it wrong.
-2. Check:
-   - No **Testnet** badge (confirms `getHostNetwork()` reports `'mainnet'`).
-   - Spendable balance shows a real number, not an error (confirms `getBalance` against the mainnet RPC).
-   - The home screen reaches "Stake NIM. Grow a garden." (the empty state), not a "Can't load your accounts" error (confirms `getStakerByAddress` against the mainnet RPC correctly reports no staker, rather than erroring).
-3. Tap **Stake** to open the sheet, but stop there — do not tap the amount field's submit button:
-   - "Minimum stake" should show a number (confirms `getPolicyConstants`). Testnet's is 100 NIM; mainnet's is unconfirmed and may differ.
-   - The validator list should show at least one entry (confirms `getActiveValidators`).
-4. Close the sheet without approving anything, and report back what you saw — especially the minimum stake figure and whether validators loaded. Once reads are confirmed, a follow-up session can verify an actual mainnet stake with a small amount.
+1. Switch Nimiq Pay's own account to mainnet, then open the app as usual.
+2. Check: no **Testnet** badge; your real spendable balance shows; the garden or the empty state loads without an error.
+3. Open **Stake** to see the live minimum stake and the validator list load. Only go further if you're comfortable sending a real transaction.
 
 ## Mock provider (dev only)
 
-To work on screens on a PC without a phone, add `?mock=1` to the dev server URL in a regular browser, e.g. `http://localhost:5173/?mock=1`. This stands in two fake accounts (110,000 NIM and 0 NIM, network testnet) for the real Nimiq Pay provider.
+To work on screens on a PC without a phone, add `?mock=1` to the dev server URL in a regular browser, e.g. `http://localhost:5173/?mock=1`. This stands in three fake accounts (one earning, one empty, one waiting on a release) for the real Nimiq Pay provider, and intercepts calls to the Validators API too, so every screen is reachable offline.
 
-The mock only exists behind `import.meta.env.DEV` and is loaded with a dynamic `import()`, so it's dead-code-eliminated from `npm run build`'s output entirely — verified by grepping `dist/` for the mock's fake data and "not mocked yet" error text after a production build; neither appears.
+The mock only exists behind `import.meta.env.DEV` and is loaded with a dynamic `import()`, so it's dead-code-eliminated from `npm run build`'s output entirely, verified by grepping `dist/` for the mock's fake data after every production build; it never appears.
 
 A **Mock data** banner is always visible at the top of the screen while the mock is active, so it can never be mistaken for real behavior.
 
-Add `&fail=` to simulate a specific failure:
+Add `&fail=` to simulate a specific failure, at any point a Nimiq Pay approval can happen (connecting, staking, stopping, or withdrawing):
 
 | `fail` value | Simulates |
 | --- | --- |
-| `notinpay` | Running outside Nimiq Pay: the provider never injects, so `init()` eventually times out |
-| `timeout` | A slow provider: it injects ~11 seconds in (just past the default 10s timeout), so the first connect attempt fails but a later retry succeeds |
-| `syncing` | `isConsensusEstablished()` returns false once, then true, so you can see the "still syncing" screen and the retry succeeding |
-| `declined` | `listAccounts()` always rejects with a `PERMISSION_DENIED` `NimiqProviderError` |
-| `stakeDeclined` | The stake sheet's approval is declined (`PERMISSION_DENIED`) |
-| `stakeNotSent` | The stake sheet's approval fails before reaching the network |
-| `stakeNetworkDown` | The stake sheet's approval fails with a `NETWORK_ERROR` |
-| `stakeMaybeSent` | The stake sheet's approval returns `TRANSACTION_OUTCOME_UNKNOWN` — shows "Check again" / "Back to garden", never a plain retry |
-| `stakeBlocked` | The stake sheet's approval is refused because another transaction is still pending |
-| `stakeTimedOut` | Nimiq Pay returns "Operation timed out after 30000 milliseconds" — shows "Timed out", never an immediate retry |
-| `stakeNoAnswer` | Nimiq Pay returns a `[birpc] timeout` error (e.g. the approval sheet was swiped away) — also shows "Timed out" |
+| `notinpay` | Running outside Nimiq Pay: the provider never injects |
+| `timeout` | A slow provider: it injects after the connect timeout, so the first attempt fails but a retry succeeds |
+| `syncing` | Nimiq Pay reports it's still syncing once, then ready |
+| `declined` | The initial account request is declined |
+| `stakeDeclined` | A staking approval is declined |
+| `stakeNotSent` | A staking approval fails before reaching the network |
+| `stakeNetworkDown` | A staking approval fails to reach the network |
+| `stakeMaybeSent` | A staking approval's outcome is unknown, never a plain retry |
+| `stakeBlocked` | A staking approval is refused because another transaction is still pending |
+| `stakeTimedOut` | Nimiq Pay doesn't answer a staking approval in time |
+| `stakeNoAnswer` | The approval sheet is swiped away mid-request; treated the same as timed out |
 
-Example: `http://localhost:5173/?mock=1&fail=declined`
+Example: `http://localhost:5173/?mock=1&fail=declined`. These apply to every staking-related call: create, add, stop earning, retire and remove, not just the first stake.
 
-Add `&nostake=1` to make every mock address report no staker, so the create-staker flow is reachable (the default mock dataset is pre-staked, so only the add-stake flow is reachable without it). Combine freely, e.g. `http://localhost:5173/?mock=1&nostake=1&fail=stakeDeclined` tests declining a create-staker approval.
+Add `&nostake=1` to make every mock address report no staker, so the create-staker flow is reachable (the default mock dataset is already staked). Add `&wait=before`, `&wait=locked` (the default), `&wait=ready` or `&wait=stuck` to pick which phase of the unstaking wait is simulated, so the countdown, the Withdraw button and a stuck second approval are all independently testable. Combine freely, e.g. `http://localhost:5173/?mock=1&wait=ready&fail=stakeDeclined`.
 
-The mock's staker records are stateful: a successful `sendNewStakerTransaction`, `sendStakeTransaction`, `sendSetActiveStakeTransaction`, `sendRetireStakeTransaction` or `sendRemoveStakeTransaction` call updates what a later `getStakerByAddress` reports, so each sheet's post-send confirmation poll and the garden update behave the same way they would against a real node. The `&fail=stake...` modes above apply to all five of these calls, not just create/add.
+The mock's staker records are stateful: a successful staking call updates what a later read reports, so each sheet's confirmation step and the garden update behave the same way they would against a real node.
 
-Add `&wait=` to pick which phase the waiting balance is in, for testing the two-phase countdown and the Withdraw entry point:
+## Probe (dev only)
 
-| `wait` value | Simulates |
-| --- | --- |
-| `before` | `inactiveFrom` is still in the future — the "Starts at the next epoch" phase |
-| `locked` (default) | `inactiveFrom` has passed, but the release block hasn't — "Locked until about 12 hours from now" |
-| `ready` | The release block has passed — the **Withdraw** button appears |
-| `stuck` | Already retired, nothing inactive — the **Finish withdrawing** resume case |
+A bare diagnostic screen, reachable at `?probe=1` (e.g. `http://localhost:5173/?probe=1`), used during development to call the real Nimiq Pay provider directly on testnet and see the raw result. It was how several of the confirmed facts in `docs/SPEC.md` were first observed: which address actually holds a stake, the exact shape of an error, the exact fields `getPolicyConstants` returns. Not part of the real app, never claims anything is verified on its own, and like the mock, gated behind `import.meta.env.DEV` so it never reaches production.
 
-Example: `http://localhost:5173/?mock=1&wait=ready`, then tap **Withdraw** to walk through both approvals.
+## Nimiq Pay calls used
+
+Via [`@nimiq/mini-app-sdk`](https://www.npmjs.com/package/@nimiq/mini-app-sdk) (see `src/nimiq/provider.ts`). **Confirmed** means run successfully on a real phone; **UNVERIFIED** means built against documented or expected behavior but not yet run there.
+
+| Call | Used for | Status |
+| --- | --- | --- |
+| `init()` | Waits for Nimiq Pay to inject the provider | Confirmed |
+| `listAccounts()` | Every basic account in the wallet | Confirmed |
+| `getBalance(address)` | Spendable NIM | Confirmed |
+| `getHostNetwork()` | Picks the RPC endpoint and the Testnet badge | Confirmed on testnet and mainnet |
+| `isConsensusEstablished()` | Shows "still syncing" instead of failing | Confirmed |
+| `sendNewStakerTransaction({ delegation, value })` | Creates a staker | Confirmed on testnet |
+| `sendStakeTransaction({ value })` | Adds to an existing staker | Confirmed on testnet |
+| `sendSetActiveStakeTransaction({ newActiveBalance })` | Stops earning on an amount, as an absolute target | UNVERIFIED |
+| `sendRetireStakeTransaction({ retireStake })` | Withdraw step 1 | UNVERIFIED |
+| `sendRemoveStakeTransaction({ value })` | Withdraw step 2, the entire retired balance | UNVERIFIED |
+| `request({ method: 'getStakerByAddress' })` | Active, waiting and released balances | Confirmed on testnet |
+| `request({ method: 'getPolicyConstants' })` | The live minimum stake and epoch length, never hardcoded | Confirmed on testnet: 100 NIM minimum, 43,200-block epoch (about 12 hours) |
+| `request({ method: 'getActiveValidators' })` | Active, jailed and retired validators | Confirmed on testnet and mainnet |
+| `NimiqProviderError` | Tells apart declined, not sent, maybe sent and more | Confirmed |
+
+Also, not part of the SDK: Nimiq's own Validators API (`src/nimiq/validatorsApi.ts`), the same service [NimJar](https://github.com/nimiq/nimjar) uses, layering fee, a reliability score and pool size on top of the chain data above. Additive throughout: if it's unreachable, every screen falls back to chain-only data rather than breaking. Confirmed reachable (CORS allows every origin) from a desktop browser and via curl against the deployed origin, on both networks; read live on a real phone on mainnet.
+
+All Luna/NIM conversions (`src/lib/luna.ts`) use `BigInt`, never floats.
 
 ## Test
 
 ```bash
 npm run typecheck   # vue-tsc
-npm test            # vitest: src/lib/luna.ts and the mock provider's failure modes
+npm test            # vitest: pure logic in src/lib and src/nimiq, plus the mock provider
 npm run build       # production build
 ```
 
-## Nimiq calls used so far
-
-Via [`@nimiq/mini-app-sdk`](https://www.npmjs.com/package/@nimiq/mini-app-sdk) (see `src/nimiq/provider.ts`):
-
-- `init()` — waits for Nimiq Pay to inject the provider.
-- `nimiq.isConsensusEstablished()` — gates the rest of the screen on network consensus.
-- `nimiq.listAccounts()` — basic accounts only. **Confirmed on testnet.**
-- `nimiq.getBalance(address)` — balance in Luna; feature-detected with `typeof nimiq.getBalance === 'function'` since older Nimiq Pay hosts don't expose it. **Confirmed on testnet.**
-- `getHostNetwork()` — picks the RPC endpoint (`rpcUrlForNetwork()` in `src/nimiq/provider.ts`: `rpc.testnet.nimiqwatch.com` or `rpc.nimiqwatch.com`, falling back to testnet when unknown) and drives the Testnet badge. **Confirmed on testnet; mainnet is UNVERIFIED** — see "Testing on mainnet" above.
-- `NimiqProviderError` — distinguishes a declined account request, and a failed staking approval, from other failures.
-- `nimiq.sendNewStakerTransaction({ delegation, value })` — creates a staker. **Confirmed on testnet.**
-- `nimiq.sendStakeTransaction({ value })` — adds to an existing staker. **Confirmed on testnet** with a 100 NIM add.
-- `nimiq.request({ method: 'getStakerByAddress', params: [address] })` — reads a staker's active, waiting and released balances. **Confirmed on testnet.**
-- `nimiq.request({ method: 'getPolicyConstants' })` — the live minimum stake and epoch length (never hardcoded). **Confirmed on testnet:** `minimumStake: 10000000` Luna (100 NIM), `blocksPerEpoch: 43200` (about 12 hours).
-- `nimiq.request({ method: 'getActiveValidators' })` — the validator chooser's list and the home screen's sky condition (active/jailed/retired; always checked first, always wins).
-- `nimiq.sendSetActiveStakeTransaction({ newActiveBalance })` — stop earning, as an absolute target. **UNVERIFIED** — see "Stop earning and withdraw" above.
-- `nimiq.sendRetireStakeTransaction({ retireStake })` — withdraw step 1. **UNVERIFIED.**
-- `nimiq.sendRemoveStakeTransaction({ value })` — withdraw step 2, the entire retired balance. **UNVERIFIED.**
-
-Also, not part of the SDK: Nimiq's own Validators API (`src/nimiq/validatorsApi.ts`), fee/reliability/pool-size data layered additively on top of the above. **Confirmed reachable via curl and a desktop browser on both networks, 2026-11-10, but not yet confirmed working from inside Nimiq Pay itself** — see `docs/SPEC.md`, open question 9 and the mainnet observations.
-
-All Luna/NIM conversions (`src/lib/luna.ts`) use `BigInt`, never floats.
-
 ## Roadmap
 
-- ~~Create-staker and add-stake~~ — built, confirmed on testnet. ~~Stop earning and withdraw~~ — built, but UNVERIFIED: next is confirming the documented unstaking timing against a real wait on testnet.
-- ~~The garden: plots, growth stages, species, and validator-driven sky, derived from chain data~~ — built.
-- ~~Watering and streaks~~ — built (local only; a small backend to sync across devices, keyed to the wallet address, is not built yet).
-- Collection, Progress, and the share card.
-- A leaderboard is on the roadmap only; the data model is kept ready for it but it isn't built.
+- ~~Create a stake, add to one~~ (built, confirmed on testnet). ~~Stop earning, withdraw~~ (built, UNVERIFIED): next is confirming the documented unstaking timing against a real wait.
+- ~~The garden's plot count, and sky from validator health~~ (built, derived from chain data).
+- ~~Watering and streaks~~ (built, local only).
+- **Rewards-based growth.** Growth stage and plant species should come from rewards actually earned, not a fixed seed stage, once reward payouts can be read and classified reliably.
+- **More species.** The full plant set (common species from rewards, rare species from watering streaks) is designed in `docs/SPEC.md` but not all of it is built.
+- **A small backend.** Watering history and streaks are local-only today; a backend keyed to the wallet address would sync them across devices.
+- Collection, Progress, and a shareable garden card.
+- A leaderboard is on the roadmap only. The data model is kept ready for it, but it isn't built.
 
-See `docs/SPEC.md` for the full build order and the open questions still to confirm on testnet.
+See `docs/SPEC.md` for the full build order and every open question still to confirm.
 
 ## Credits
 
-- [NimJar](https://github.com/nimiq/nimjar) — Nimiq's own reference mini app; used to confirm real `@nimiq/mini-app-sdk` usage.
-- [Nimiq Developer Center](https://nimiq.dev/mini-apps) — Mini App SDK and Nimiq Provider API reference.
-- MIT licensed, see `LICENSE`.
+- [Nimiq](https://www.nimiq.com/) and the [Nimiq Developer Center](https://nimiq.dev/mini-apps) for the Mini App SDK and the Provider API reference this app is built against.
+- [NimJar](https://github.com/nimiq/nimjar), Nimiq's own reference staking mini app, used throughout to confirm real SDK usage and to find the Validators API and the mainnet RPC default.
+- The Validators API (`validators-api-main.je-cf9.workers.dev` and its testnet equivalent), Nimiq's own validator directory, for the fee, reliability and pool-size data layered onto the chain's own read.
+
+MIT licensed, see [`LICENSE`](LICENSE).

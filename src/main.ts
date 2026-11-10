@@ -1,3 +1,4 @@
+import { inject } from '@vercel/analytics'
 import { createApp } from 'vue'
 import App from './App.vue'
 import './style.css'
@@ -43,6 +44,12 @@ async function bootstrap() {
       const wait = requestedWait && isMockWaitScenario(requestedWait) ? requestedWait : undefined
       installMockProvider(fail as Parameters<typeof installMockProvider>[0], noStake, wait)
     }
+  }
+  else {
+    // Production only: never in dev, and never alongside mock mode (which only
+    // exists inside the DEV branch above). No cookies, no user or wallet data —
+    // inject() just counts anonymous page views.
+    inject()
   }
 
   createApp(App).mount('#app')

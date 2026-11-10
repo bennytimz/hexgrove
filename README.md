@@ -34,6 +34,10 @@ Everything here has been built against confirmed or documented behavior, never g
 
 "Unverified" never means "untested against expected behavior": it means built exactly to documented or confirmed rules, but not yet exercised on that specific network. See `docs/SPEC.md`'s open questions for the exact gaps and how to close them.
 
+## Privacy
+
+Hexgrove uses Vercel Web Analytics for anonymous visit counts. No wallet or account data is collected.
+
 ## Setup
 
 ```bash

@@ -83,7 +83,7 @@ function validatorMetaLine(v: ValidatorOption): string {
     parts.push(`${formatFraction(v.dominanceRatio)} of network`)
   const rate = validatorRate(networkRateValue.value, v.feeFraction)
   if (rate !== null)
-    parts.push(`about ${formatFraction(rate)} a year`)
+    parts.push(`~${formatFraction(rate)} a year`)
   return parts.join(' · ')
 }
 

@@ -29,7 +29,7 @@ Everything here has been built against confirmed or documented behavior, never g
 | Create a stake | Confirmed on a real phone | Confirmed on a real phone (100 NIM, 2026-11-10, no fee) |
 | Add to an existing stake | Confirmed on a real phone | Confirmed on a real phone (2026-11-11) |
 | Validator list, minimum stake, Validators API | Confirmed on a real phone | Confirmed on a real phone — reads (fee, reliability, Recommended tag) and the live minimum stake, confirmed when a 100 NIM create-staker transaction succeeded on mainnet |
-| Stop earning, withdraw | Confirmed on a real phone (a real unstake and withdraw, retire then remove, 2026-11-10) | Stop earning confirmed on a real phone (2026-11-11): a real transaction was accepted, and the 100 NIM now shows as "Waiting to withdraw". Withdraw itself is still **UNVERIFIED** on mainnet — the release and the withdraw transaction haven't run yet, expected about 12 to 24 hours after the stop |
+| Stop earning, withdraw | Confirmed on a real phone (a real unstake and withdraw, retire then remove, 2026-11-10) | Confirmed on a real phone: stop earning (2026-11-11), then withdraw, retire then remove (2026-11-11, about 17:55 Lagos). The 100 NIM came back to Spendable |
 | The waiting countdown, the release timing | Confirmed on testnet, 2026-11-10: release block = inactiveFrom + blocksPerEpoch matched a real wait | **UNVERIFIED** on mainnet |
 
 "Unverified" never means "untested against expected behavior": it means built exactly to documented or confirmed rules, but not yet exercised on that specific network. See `docs/SPEC.md`'s open questions for the exact gaps and how to close them.
@@ -83,9 +83,9 @@ Opening the same URL in a regular desktop browser (outside Nimiq Pay) should sho
 4. From the home screen: **Stake** (minimum 100 NIM, read live, confirmed) creates a staker; **Add stake** adds to one. A validator is picked for you, with fee, reliability and network share shown when available, but you can browse and choose any active one. Once you have a stake, **Stake → Validators** shows the same list read-only, with your current validator marked; it never moves your stake. **Refresh**, under the header, reloads your stake, validator health and the yield estimate.
 5. **Stop earning** and **Withdraw** are confirmed on testnet: a real unstake and withdraw, through the app's own flow (retire then remove, both approved in Nimiq Pay), ran on 2026-11-10. Still worth trying yourself; expect the wait to be about 12 to 24 hours depending on timing. See `docs/SPEC.md`'s open question 13, now answered.
 
-## Testing on mainnet (create stake, add stake and stop earning confirmed; withdraw still unverified)
+## Testing on mainnet (create stake, add stake, stop earning and withdraw all confirmed)
 
-A real phone test already confirmed the read paths: spendable balance, staker record, the live minimum stake, the validator list, and fee/reliability/Recommended data from the Validators API all showed correctly on mainnet. Real transactions by the owner have also confirmed create staker (2026-11-10, 100 NIM, no fee), adding to an existing stake, and stop earning (2026-11-11 — the 100 NIM stake now shows as "Waiting to withdraw"). The release and the withdraw transaction itself are still pending on mainnet, expected to become ready about 12 to 24 hours after the stop. Until that runs, treat mainnet withdraw as untested.
+A real phone test already confirmed the read paths: spendable balance, staker record, the live minimum stake, the validator list, and fee/reliability/Recommended data from the Validators API all showed correctly on mainnet. Real transactions by the owner have also confirmed create staker (2026-11-10, 100 NIM, no fee), adding to an existing stake, stop earning (2026-11-11), and withdraw (2026-11-11, about 17:55 Lagos: retire then remove through the app's own flow, and the 100 NIM came back to Spendable).
 
 1. Switch Nimiq Pay's own account to mainnet, then open the app as usual.
 2. Check: no **Testnet** badge; your real spendable balance shows; the garden or the empty state loads without an error.
@@ -139,8 +139,8 @@ Via [`@nimiq/mini-app-sdk`](https://www.npmjs.com/package/@nimiq/mini-app-sdk) (
 | `sendNewStakerTransaction({ delegation, value })` | Creates a staker | Confirmed on testnet and mainnet |
 | `sendStakeTransaction({ value })` | Adds to an existing staker | Confirmed on testnet and mainnet |
 | `sendSetActiveStakeTransaction({ newActiveBalance })` | Stops earning on an amount, as an absolute target | Confirmed on testnet and mainnet (2026-11-11) |
-| `sendRetireStakeTransaction({ retireStake })` | Withdraw step 1 | Confirmed on testnet |
-| `sendRemoveStakeTransaction({ value })` | Withdraw step 2, the entire retired balance | Confirmed on testnet |
+| `sendRetireStakeTransaction({ retireStake })` | Withdraw step 1 | Confirmed on testnet and mainnet (2026-11-11) |
+| `sendRemoveStakeTransaction({ value })` | Withdraw step 2, the entire retired balance | Confirmed on testnet and mainnet (2026-11-11) |
 | `request({ method: 'getStakerByAddress' })` | Active, waiting and released balances | Confirmed on testnet and mainnet |
 | `request({ method: 'getPolicyConstants' })` | The live minimum stake and epoch length, never hardcoded | Confirmed on testnet and mainnet: 100 NIM minimum, 43,200-block epoch (about 12 hours) on testnet |
 | `request({ method: 'getActiveValidators' })` | Active, jailed and retired validators | Confirmed on testnet and mainnet |
@@ -160,7 +160,7 @@ npm run build       # production build
 
 ## Roadmap
 
-- ~~Create a stake, add to one~~ (built, confirmed on testnet and mainnet). ~~Stop earning, withdraw~~ (built, confirmed on testnet, 2026-11-10). Stop earning is also confirmed on mainnet (2026-11-11); mainnet withdraw is still unverified, pending the release wait.
+- ~~Create a stake, add to one~~ (built, confirmed on testnet and mainnet). ~~Stop earning, withdraw~~ (built, confirmed on testnet 2026-11-10 and on mainnet 2026-11-11).
 - ~~The garden's plot count, and sky from validator health~~ (built, derived from chain data).
 - ~~Watering and streaks~~ (built, local only).
 - **Rewards-based growth.** Growth stage and plant species should come from rewards actually earned, not a fixed seed stage, once reward payouts can be read and classified reliably.

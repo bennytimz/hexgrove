@@ -26,11 +26,9 @@ Two hard constraints from here on:
 | Add to an existing stake | Confirmed | Confirmed (2026-11-11) |
 | Validator list, minimum stake, Validators API | Confirmed | Confirmed |
 | Stop earning | Confirmed | Confirmed (2026-11-11) |
-| Withdraw (retire + remove) | Confirmed (2026-11-10) | **Not yet verified** |
+| Withdraw (retire + remove) | Confirmed (2026-11-10) | Confirmed (2026-11-11) |
 
-**Pending:** mainnet withdraw. Stop earning ran on mainnet around 2026-11-10 23:55 Lagos time; the stake shows "Waiting to withdraw." It becomes ready roughly 12 to 24 hours after that stop. Do not mark mainnet withdraw as verified until it has actually been run and the result recorded in `docs/SPEC.md` and `README.md`'s verification table.
-
-Testnet is fully verified end to end, including the full withdraw cycle.
+Both networks are verified end to end, including the full withdraw cycle. On mainnet, stop earning ran around 2026-11-10 23:55 Lagos time, and withdraw (retire then remove, through the app) returned the 100 NIM to Spendable on 2026-11-11, about 17:55 Lagos.
 
 ## 4. Architecture, key files
 
@@ -76,15 +74,15 @@ Testnet is fully verified end to end, including the full withdraw cycle.
 
 ## 7. Next steps
 
-1. Run the mainnet withdraw (retire then remove) once the wait is over, and record the result in `docs/SPEC.md` and `README.md`'s verification table.
-2. Label `docs/hexgrove-mockup.html` as sample-only.
-3. Style the "Released" row.
-4. Decide and scope reward-driven (or time-staked) growth as the next real feature, once the competition deadline has passed.
+1. Label `docs/hexgrove-mockup.html` as sample-only.
+2. Style the "Released" row.
+3. Decide and scope reward-driven (or time-staked) growth as the next real feature, once the competition deadline has passed.
 
 ## Changelog
 
 Append new entries here, newest first, one line per session: date, what changed, what's still open.
 
+- 2026-11-11 — Mainnet withdraw confirmed (100 NIM back to Spendable, about 17:55 Lagos, retire then remove through the app). Recorded in README, SPEC and this file; the full staking lifecycle is now verified on both networks. Still open: switch validator (open question 6).
 - 2026-11-11 — Merged `validators-browse` into main (fast-forward to 3750aec) and pushed, with the Spendable/Refresh line and Preview on its own row below. Typecheck, 179 tests and build pass on main. Mainnet withdraw and switch validator (open question 6) still open.
 - 2026-11-11 — Branch `validators-browse` (not merged to main): read-only Validators view in the Stake menu, intro line at the top of How it works, always-visible Refresh on the home screen; phone test passed. Follow-ups: waiting-line full stop, one-decimal yearly rate in the list, and the testnet directory's `-1` "not scored" sentinel now read as no score instead of Stormy. Switch validator added to open items, pending open question 6.
 

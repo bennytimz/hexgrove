@@ -85,6 +85,6 @@ Testnet is fully verified end to end, including the full withdraw cycle.
 
 Append new entries here, newest first, one line per session: date, what changed, what's still open.
 
-- 2026-11-11 — Branch `validators-browse` (not merged to main): read-only Validators view in the Stake menu, intro line at the top of How it works, always-visible Refresh on the home screen. Not yet verified on a phone. Switch validator added to open items, pending open question 6.
+- 2026-11-11 — Branch `validators-browse` (not merged to main): read-only Validators view in the Stake menu, intro line at the top of How it works, always-visible Refresh on the home screen; phone test passed. Follow-ups: waiting-line full stop, one-decimal yearly rate in the list, and the testnet directory's `-1` "not scored" sentinel now read as no score instead of Stormy. Switch validator added to open items, pending open question 6.
 
 - 2026-11-11 — Recorded mainnet add-stake and stop-earning confirmations in README/SPEC. Mainnet withdraw still pending the release wait. Created this handoff file.

@@ -154,10 +154,10 @@ Conditions describe recent reliability. They never promise rewards, and the UI s
 | Sunny | Chain RPC says healthy, and the Validators API's score is 0.85 or higher (the table's "85", scaled — see below) | "Your validator is reliable" |
 | Cloudy | Chain RPC says healthy, and the score is 0.60 to 0.84 | "Worth a second look" |
 | Stormy | Chain RPC says healthy, but the score is below 0.60 | "Your validator's reliability has dropped" |
-| Sunny | Chain RPC says healthy, but the Validators API is unreachable or has no entry for this validator (additive fallback, unchanged from before 2026-11-10) | "Your validator is active" |
+| Sunny | Chain RPC says healthy, but the Validators API is unreachable, has no entry for this validator, or reports a score outside 0-1 (additive fallback, unchanged from before 2026-11-10) | "Your validator is active" |
 | Dusk | Chain RPC lookup failed, or the validator isn't found in the active list (regardless of the score) | "Can't check your validator right now" |
 
-A currently jailed, retired or inactive validator is always Stormy with the specific reason, even with a good score — the chain-RPC check is never overridden by the score, only extended by it. Never call this a "reliability score" anywhere in the app. See `src/lib/sky.ts` and `src/nimiq/validatorsApi.ts`.
+A currently jailed, retired or inactive validator is always Stormy with the specific reason, even with a good score — the chain-RPC check is never overridden by the score, only extended by it. **Observed 2026-11-11 (live API, both networks):** no validator reports exactly 1. Mainnet's 21 scores run from about 0.819 to 0.9999999, so most round to "100%" at whole-percent display. The testnet directory returns `total: -1` (with `reliability: -1`, `scoreVersion: 1`) for validators it hasn't scored yet; the app treats any total outside 0-1 as no score, never as Stormy. Never call this a "reliability score" anywhere in the app. See `src/lib/sky.ts` and `src/nimiq/validatorsApi.ts`.
 
 **Recommended tag.** A pool gets it when it is sunny, charges 6% or less, pays rewards directly to the wallet, and holds under 10% of the network. Publish these criteria in the app. Several pools can carry the tag. **Also the default, 2026-11-10:** the chooser preselects the best Recommended pool (highest score) when any qualify, not just a healthy-and-busiest pick independent of it — see the mainnet observation below for why.
 

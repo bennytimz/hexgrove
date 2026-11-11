@@ -57,6 +57,21 @@ describe('parseDirectoryEntry', () => {
     expect(parseDirectoryEntry({ address, score: 'bad' })?.scoreTotal).toBeNull()
     expect(parseDirectoryEntry({ address, score: { total: 'bad' } })?.scoreTotal).toBeNull()
   })
+
+  it('treats the testnet "not scored yet" sentinel (-1) and other out-of-range totals as no score', () => {
+    const address = 'NQ00 0000 0000 0000 0000 0000 0000 0000 0000'
+    // Real shape from the testnet directory, 2026-11-11.
+    const sentinel = { scoreVersion: 1, total: -1, availability: 1, reliability: -1, dataStatus: 'current' }
+    expect(parseDirectoryEntry({ address, score: sentinel })?.scoreTotal).toBeNull()
+    expect(parseDirectoryEntry({ address, score: { total: 1.5 } })?.scoreTotal).toBeNull()
+    expect(parseDirectoryEntry({ address, score: { total: Number.NaN } })?.scoreTotal).toBeNull()
+  })
+
+  it('keeps the in-range ends, 0 and 1, as real scores', () => {
+    const address = 'NQ00 0000 0000 0000 0000 0000 0000 0000 0000'
+    expect(parseDirectoryEntry({ address, score: { total: 0 } })?.scoreTotal).toBe(0)
+    expect(parseDirectoryEntry({ address, score: { total: 1 } })?.scoreTotal).toBe(1)
+  })
 })
 
 describe('isRecommendedValidator', () => {
@@ -123,6 +138,13 @@ describe('sortValidatorOptions', () => {
     const lowerScoreRecommended = option({ address: 'b', recommended: true, scoreTotal: 0.86 })
     const sorted = sortValidatorOptions([lowerScoreRecommended, nq32Recommended])
     expect(sorted.map(v => v.address)).toEqual([nq32Recommended.address, lowerScoreRecommended.address])
+  })
+
+  it('puts rows without directory data last, below even a score of 0 and regardless of stakers', () => {
+    const unscoredBusy = option({ address: 'unscored', numStakers: 999 })
+    const zeroScore = option({ address: 'zero', scoreTotal: 0, numStakers: 1 })
+    const goodScore = option({ address: 'good', scoreTotal: 0.99, numStakers: 1 })
+    expect(sortValidatorOptions([unscoredBusy, zeroScore, goodScore]).map(v => v.address)).toEqual(['good', 'zero', 'unscored'])
   })
 
   it('breaks a score tie (including both null) by more stakers first', () => {

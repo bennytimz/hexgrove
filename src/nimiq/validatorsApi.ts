@@ -29,6 +29,17 @@ export interface ValidatorDirectoryEntry {
 }
 
 /**
+ * The score is documented as 0-1, but the live testnet directory returns
+ * `total: -1` (with `reliability: -1`, scoreVersion 1) for validators it
+ * can't score yet, seen 2026-11-11 on NimiqHub Staking and ObsidianStake.
+ * Anything outside 0-1 is treated as "no score", never as a terrible one,
+ * so it can't turn the sky or the list Stormy (the no-false-storm rule).
+ */
+function isScoreInRange(total: unknown): total is number {
+  return typeof total === 'number' && total >= 0 && total <= 1
+}
+
+/**
  * Defensive parse of one raw directory entry — pure, so it's unit-tested
  * directly rather than only exercised through a live fetch. Deliberately
  * ignores fields this app doesn't use (name, logo, website, id, ...).
@@ -43,7 +54,7 @@ export function parseDirectoryEntry(raw: unknown): ValidatorDirectoryEntry | nul
   return {
     address: v.address,
     feeFraction: typeof v.fee === 'number' ? v.fee : null,
-    scoreTotal: score && typeof score.total === 'number' ? score.total : null,
+    scoreTotal: score && isScoreInRange(score.total) ? score.total : null,
     dominanceRatio: typeof v.dominanceRatio === 'number' ? v.dominanceRatio : null,
     payoutType: typeof v.payoutType === 'string' ? v.payoutType : null,
   }

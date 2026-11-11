@@ -45,7 +45,7 @@ export function aboutDuration(blocks: number): string {
  */
 export function describeWaitingState(blockNumber: number, inactiveFrom: number, blocksPerEpoch: number | null): WaitingState {
   if (blockNumber < inactiveFrom) {
-    return { phase: 'beforeInactive', text: 'Starts at the next epoch' }
+    return { phase: 'beforeInactive', text: 'Starts at the next epoch.' }
   }
   if (blocksPerEpoch === null) {
     return { phase: 'locked', text: 'Locked. The wait time isn\'t available right now.' }
@@ -54,5 +54,5 @@ export function describeWaitingState(blockNumber: number, inactiveFrom: number, 
   if (blocksRemaining <= 0) {
     return { phase: 'ready', text: 'Can move back to your wallet. This takes two approvals.' }
   }
-  return { phase: 'locked', text: `Locked until about ${aboutDuration(blocksRemaining)} from now`, caveat: JAIL_CAVEAT }
+  return { phase: 'locked', text: `Locked until about ${aboutDuration(blocksRemaining)} from now.`, caveat: JAIL_CAVEAT }
 }

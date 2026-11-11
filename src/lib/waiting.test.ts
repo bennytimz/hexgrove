@@ -24,7 +24,7 @@ describe('describeWaitingState', () => {
   it('is "beforeInactive" before the election block takes effect, and never says Ready', () => {
     const state = describeWaitingState(999_000, 1_000_000, 43_200)
     expect(state.phase).toBe('beforeInactive')
-    expect(state.text).toBe('Starts at the next epoch')
+    expect(state.text).toBe('Starts at the next epoch.')
     expect(state.text.toLowerCase()).not.toContain('ready')
     expect(state.caveat).toBeUndefined()
   })
@@ -33,11 +33,11 @@ describe('describeWaitingState', () => {
     // At inactiveFrom exactly, the full epoch remains: 43,200 blocks ≈ 12 hours.
     const atStart = describeWaitingState(1_000_000, 1_000_000, 43_200)
     expect(atStart.phase).toBe('locked')
-    expect(atStart.text).toBe('Locked until about 12 hours from now')
+    expect(atStart.text).toBe('Locked until about 12 hours from now.')
 
     // Partway through the epoch: 3,600 blocks (~1 hour) remain to the release block.
     const partway = describeWaitingState(1_039_600, 1_000_000, 43_200)
-    expect(partway.text).toBe('Locked until about 1 hour from now')
+    expect(partway.text).toBe('Locked until about 1 hour from now.')
   })
 
   it('never says Ready while locked, and always includes the jailed caveat', () => {
@@ -59,6 +59,19 @@ describe('describeWaitingState', () => {
     expect(state.text.toLowerCase()).not.toContain('release block')
     expect(state.text.toLowerCase()).not.toContain('passed')
     expect(state.caveat).toBeUndefined()
+  })
+
+  it('every text is a full sentence, so joining it with the caveat reads correctly', () => {
+    const states = [
+      describeWaitingState(999_000, 1_000_000, 43_200),
+      describeWaitingState(1_000_000, 1_000_000, 43_200),
+      describeWaitingState(1_020_000, 1_000_000, null),
+      describeWaitingState(1_100_000, 1_000_000, 43_200),
+    ]
+    for (const state of states)
+      expect(state.text).toMatch(/\.$/)
+    const locked = describeWaitingState(1_039_600, 1_000_000, 43_200)
+    expect(`${locked.text} ${locked.caveat}`).toBe('Locked until about 1 hour from now. This is an estimate. It can take longer if the validator is jailed.')
   })
 
   it('"ready" exactly at the release block too, not only once past it', () => {

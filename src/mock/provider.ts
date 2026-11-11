@@ -54,7 +54,7 @@ export const MOCK_BLOCKS_PER_EPOCH = 43_200
  * `?mock=1&wait=` picks which phase MOCK_ADDRESSES[2]'s wait is in, so the
  * two-phase countdown (src/lib/waiting.ts) and the Withdraw entry point are
  * both independently testable:
- * - `before` (inactiveFrom in the future): the "Starts at the next epoch" phase.
+ * - `before` (inactiveFrom in the future): the "Starts at the next epoch." phase.
  * - `locked` (default): inactiveFrom just passed, release block still ahead — "Locked until about X".
  * - `ready`: release block (inactiveFrom + blocksPerEpoch) has passed — Withdraw becomes reachable.
  * - `stuck`: already retired, nothing inactive — the "Finish withdrawing" resume case.

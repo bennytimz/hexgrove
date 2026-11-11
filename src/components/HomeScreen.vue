@@ -726,6 +726,8 @@ onMounted(connect)
           ×
         </button>
         <h2>How it works</h2>
+        <p class="lead">Stake NIM. Grow a garden.</p>
+        <p class="hint">Staking NIM opens hex plots in your garden. Rewards vary, and stopping takes time.</p>
         <p>Three signals drive the garden, and each one reads real data, not a placeholder.</p>
         <h3>Plots from your stake</h3>
         <p class="hint">The number of hex plots is set by how much NIM is actively earning, read live from your staker record on chain every time the app opens.</p>
@@ -1008,6 +1010,12 @@ onMounted(connect)
 .sheet p {
   margin: 0;
   line-height: 1.5;
+}
+
+.sheet p.lead {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--gold-soft);
 }
 
 .closebtn {

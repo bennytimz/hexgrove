@@ -39,6 +39,11 @@ export function formatFeePercent(fraction: number): string {
   return `${Number.isInteger(percent) ? percent : percent.toFixed(1)}%`
 }
 
+/** 0.0811 → "8.1%". Always one decimal, so fee differences between validators stay visible. Only for the list's yearly rate; the home screen's NIM estimate is rounded separately. */
+export function formatRatePercent(rate: number): string {
+  return `${(rate * 100).toFixed(1)}%`
+}
+
 const WORD = { sunny: 'Sunny', cloudy: 'Cloudy', stormy: 'Stormy' } as const
 
 export function describeValidatorStatus(v: Pick<ValidatorRowInput, 'healthy' | 'scoreTotal'>): ValidatorRowStatus {
@@ -59,7 +64,7 @@ export function validatorFacts(v: ValidatorRowInput, netRate: number | null): st
     facts.push(`${formatFraction(v.dominanceRatio)} of network`)
   const rate = validatorRate(netRate, v.feeFraction)
   if (rate !== null)
-    facts.push(`~${formatFraction(rate)} a year`)
+    facts.push(`~${formatRatePercent(rate)} a year`)
   return facts
 }
 

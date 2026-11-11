@@ -1,6 +1,6 @@
 import type { ValidatorOption } from './validatorsApi'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { directoryUrlForNetwork, fetchValidatorsDirectory, isRecommendedValidator, parseDirectoryEntry, pickDefaultValidator, sortValidatorOptions, VALIDATORS_API_MAINNET_URL, VALIDATORS_API_TESTNET_URL } from './validatorsApi'
+import { directoryUrlForNetwork, fetchValidatorsDirectory, isRecommendedValidator, mergeDirectory, parseDirectoryEntry, parseValidators, pickDefaultValidator, sortValidatorOptions, VALIDATORS_API_MAINNET_URL, VALIDATORS_API_TESTNET_URL } from './validatorsApi'
 
 describe('directoryUrlForNetwork', () => {
   it('picks the mainnet directory for \'mainnet\', testnet otherwise', () => {
@@ -201,5 +201,44 @@ describe('fetchValidatorsDirectory', () => {
     expect(result).toHaveLength(1)
     expect(result[0].feeFraction).toBe(0.05)
     expect(fetchMock.mock.calls[0][0]).toBe(`${VALIDATORS_API_MAINNET_URL}/api/v1/validators`)
+  })
+})
+
+describe('parseValidators', () => {
+  it('maps chain fields, skips entries without an address, and starts directory fields null', () => {
+    const raw = [
+      { address: 'NQ07 AAAA', balance: 500, numStakers: 3, retired: false, inactivityFlag: null, jailedFrom: null },
+      { address: 'NQ07 BBBB', retired: true },
+      { balance: 1 },
+      null,
+    ]
+    expect(parseValidators(raw)).toEqual([
+      { address: 'NQ07 AAAA', numStakers: 3, healthy: true, balanceLuna: 500, feeFraction: null, scoreTotal: null, dominanceRatio: null, recommended: false },
+      { address: 'NQ07 BBBB', numStakers: 0, healthy: false, balanceLuna: null, feeFraction: null, scoreTotal: null, dominanceRatio: null, recommended: false },
+    ])
+  })
+
+  it('gives an empty list for a non-array result', () => {
+    expect(parseValidators(undefined)).toEqual([])
+    expect(parseValidators({})).toEqual([])
+  })
+})
+
+describe('mergeDirectory', () => {
+  const chain = parseValidators([
+    { address: 'NQ07 AAAA', numStakers: 3 },
+    { address: 'NQ07 BBBB', numStakers: 1 },
+  ])
+
+  it('layers directory fields on by address, ignoring spacing', () => {
+    const merged = mergeDirectory(chain, [
+      { address: 'nq07aaaa', feeFraction: 0.05, scoreTotal: 0.9, dominanceRatio: 0.02, payoutType: 'direct' },
+    ])
+    expect(merged[0]).toMatchObject({ feeFraction: 0.05, scoreTotal: 0.9, dominanceRatio: 0.02, recommended: true })
+    expect(merged[1]).toEqual(chain[1])
+  })
+
+  it('leaves the chain list untouched when the directory is empty (unreachable)', () => {
+    expect(mergeDirectory(chain, [])).toEqual(chain)
   })
 })

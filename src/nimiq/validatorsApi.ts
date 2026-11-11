@@ -1,5 +1,5 @@
 import type { Network } from '@nimiq/mini-app-sdk'
-import { SCORE_SUNNY_THRESHOLD } from '../lib/sky'
+import { compactAddress, isValidatorHealthy, SCORE_SUNNY_THRESHOLD } from '../lib/sky'
 
 /**
  * Nimiq's own validator directory — the service NimJar uses (found via its
@@ -72,6 +72,55 @@ export interface ValidatorOption {
   scoreTotal: number | null
   dominanceRatio: number | null
   recommended: boolean
+}
+
+/**
+ * Turns a raw getActiveValidators result into chooser rows (chain-RPC fields
+ * only; directory fields start null). Anything without a string address is
+ * skipped; a non-array result gives an empty list.
+ */
+export function parseValidators(raw: unknown): ValidatorOption[] {
+  if (!Array.isArray(raw))
+    return []
+  const out: ValidatorOption[] = []
+  for (const entry of raw) {
+    if (entry && typeof entry === 'object' && typeof (entry as { address?: unknown }).address === 'string') {
+      const v = entry as { address: string, balance?: unknown, numStakers?: unknown, retired?: boolean, inactivityFlag?: unknown, jailedFrom?: unknown }
+      out.push({
+        address: v.address,
+        numStakers: typeof v.numStakers === 'number' ? v.numStakers : 0,
+        healthy: isValidatorHealthy(v),
+        balanceLuna: typeof v.balance === 'number' ? v.balance : null,
+        feeFraction: null,
+        scoreTotal: null,
+        dominanceRatio: null,
+        recommended: false,
+      })
+    }
+  }
+  return out
+}
+
+/**
+ * Layers the Validators API's fee, reliability score and pool size onto the
+ * chain-RPC validator list, by address. Purely additive: a validator with
+ * no matching directory entry (the API failed, or just doesn't list it)
+ * keeps its chain-only fields untouched, exactly as before this existed.
+ */
+export function mergeDirectory(chainValidators: ValidatorOption[], directory: ValidatorDirectoryEntry[]): ValidatorOption[] {
+  const byAddress = new Map(directory.map(d => [compactAddress(d.address), d]))
+  return chainValidators.map((v) => {
+    const entry = byAddress.get(compactAddress(v.address))
+    if (!entry)
+      return v
+    return {
+      ...v,
+      feeFraction: entry.feeFraction,
+      scoreTotal: entry.scoreTotal,
+      dominanceRatio: entry.dominanceRatio,
+      recommended: isRecommendedValidator(entry),
+    }
+  })
 }
 
 /** Shared tiebreak for "best": higher reliability score first (nulls last), then more stakers. */

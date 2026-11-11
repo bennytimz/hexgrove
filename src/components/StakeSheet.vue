@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import type { TxOutcome } from '../lib/txOutcome'
 import type { NimiqProvider } from '../nimiq/provider'
-import type { ValidatorDirectoryEntry, ValidatorOption } from '../nimiq/validatorsApi'
+import type { ValidatorOption } from '../nimiq/validatorsApi'
 import { computed, onMounted, ref } from 'vue'
 import { formatNim, nimToLuna, shortfallLuna } from '../lib/luna'
-import { compactAddress, isValidatorHealthy } from '../lib/sky'
 import { classifyStakeRecheck, classifyTxError, TX_OUTCOME_COPY } from '../lib/txOutcome'
 import { networkRate, validatorRate } from '../lib/yield'
 import { getHostNetwork, getProvider, rpcUrlForNetwork } from '../nimiq/provider'
 import { readPolicyConstants } from '../nimiq/policy'
 import { readCombinedStaker } from '../nimiq/staker'
-import { fetchValidatorsDirectory, isRecommendedValidator, pickDefaultValidator, sortValidatorOptions } from '../nimiq/validatorsApi'
+import { fetchValidatorsDirectory, mergeDirectory, parseValidators, pickDefaultValidator, sortValidatorOptions } from '../nimiq/validatorsApi'
 
 const props = defineProps<{
   addresses: string[]
@@ -91,50 +90,6 @@ function validatorMetaLine(v: ValidatorOption): string {
   if (rate !== null)
     parts.push(`~${formatFraction(rate)} a year`)
   return parts.join(' · ')
-}
-
-function parseValidators(raw: unknown): ValidatorOption[] {
-  if (!Array.isArray(raw))
-    return []
-  const out: ValidatorOption[] = []
-  for (const entry of raw) {
-    if (entry && typeof entry === 'object' && typeof (entry as { address?: unknown }).address === 'string') {
-      const v = entry as { address: string, balance?: unknown, numStakers?: unknown, retired?: boolean, inactivityFlag?: unknown, jailedFrom?: unknown }
-      out.push({
-        address: v.address,
-        numStakers: typeof v.numStakers === 'number' ? v.numStakers : 0,
-        healthy: isValidatorHealthy(v),
-        balanceLuna: typeof v.balance === 'number' ? v.balance : null,
-        feeFraction: null,
-        scoreTotal: null,
-        dominanceRatio: null,
-        recommended: false,
-      })
-    }
-  }
-  return out
-}
-
-/**
- * Layers the Validators API's fee, reliability score and pool size onto the
- * chain-RPC validator list, by address. Purely additive: a validator with
- * no matching directory entry (the API failed, or just doesn't list it)
- * keeps its chain-only fields untouched, exactly as before this existed.
- */
-function mergeDirectory(chainValidators: ValidatorOption[], directory: ValidatorDirectoryEntry[]): ValidatorOption[] {
-  const byAddress = new Map(directory.map(d => [compactAddress(d.address), d]))
-  return chainValidators.map((v) => {
-    const entry = byAddress.get(compactAddress(v.address))
-    if (!entry)
-      return v
-    return {
-      ...v,
-      feeFraction: entry.feeFraction,
-      scoreTotal: entry.scoreTotal,
-      dominanceRatio: entry.dominanceRatio,
-      recommended: isRecommendedValidator(entry),
-    }
-  })
 }
 
 async function loadForm() {

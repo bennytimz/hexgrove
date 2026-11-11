@@ -36,6 +36,19 @@ export const SCORE_SUNNY_THRESHOLD = 0.85
 export const SCORE_CLOUDY_THRESHOLD = 0.60
 
 /**
+ * The score table on its own: 0-1 reliability score → Sunny/Cloudy/Stormy.
+ * Shared by the garden sky (computeSkyState) and the Validators list, so
+ * both always agree on the thresholds.
+ */
+export function conditionForScore(scoreTotal: number): 'sunny' | 'cloudy' | 'stormy' {
+  if (scoreTotal >= SCORE_SUNNY_THRESHOLD)
+    return 'sunny'
+  if (scoreTotal >= SCORE_CLOUDY_THRESHOLD)
+    return 'cloudy'
+  return 'stormy'
+}
+
+/**
  * `validator` is the getActiveValidators entry matching the delegation
  * address, or null if the lookup failed or no match was found — both
  * cases read as Dusk, never Stormy, per the spec's "no data" rule.
@@ -59,13 +72,14 @@ export function computeSkyState(validator: ValidatorFields | null, scoreTotal: n
     return { condition: 'stormy', label: 'Your validator is inactive right now' }
   }
   if (scoreTotal != null) {
-    if (scoreTotal >= SCORE_SUNNY_THRESHOLD) {
-      return { condition: 'sunny', label: 'Your validator is reliable' }
+    const condition = conditionForScore(scoreTotal)
+    if (condition === 'sunny') {
+      return { condition, label: 'Your validator is reliable' }
     }
-    if (scoreTotal >= SCORE_CLOUDY_THRESHOLD) {
-      return { condition: 'cloudy', label: 'Worth a second look' }
+    if (condition === 'cloudy') {
+      return { condition, label: 'Worth a second look' }
     }
-    return { condition: 'stormy', label: "Your validator's reliability has dropped" }
+    return { condition, label: "Your validator's reliability has dropped" }
   }
   return { condition: 'sunny', label: 'Your validator is active' }
 }

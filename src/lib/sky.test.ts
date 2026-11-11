@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compactAddress, computeSkyState, isValidatorHealthy, SCORE_CLOUDY_THRESHOLD, SCORE_SUNNY_THRESHOLD } from './sky'
+import { compactAddress, computeSkyState, conditionForScore, isValidatorHealthy, SCORE_CLOUDY_THRESHOLD, SCORE_SUNNY_THRESHOLD } from './sky'
 
 describe('computeSkyState', () => {
   it('is Dusk with no reliability-score wording when the validator is null (lookup failed or not found)', () => {
@@ -73,6 +73,16 @@ describe('computeSkyState', () => {
     it('ignores the score when the validator lookup itself failed (still Dusk, not Cloudy)', () => {
       expect(computeSkyState(null, 1).condition).toBe('dusk')
     })
+  })
+})
+
+describe('conditionForScore', () => {
+  it('matches the score table at each boundary', () => {
+    expect(conditionForScore(1)).toBe('sunny')
+    expect(conditionForScore(SCORE_SUNNY_THRESHOLD)).toBe('sunny')
+    expect(conditionForScore(SCORE_SUNNY_THRESHOLD - 0.001)).toBe('cloudy')
+    expect(conditionForScore(SCORE_CLOUDY_THRESHOLD)).toBe('cloudy')
+    expect(conditionForScore(SCORE_CLOUDY_THRESHOLD - 0.001)).toBe('stormy')
   })
 })
 

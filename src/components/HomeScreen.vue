@@ -9,6 +9,7 @@ import { computed, onMounted, ref } from 'vue'
 import HexGarden from './HexGarden.vue'
 import StakeSheet from './StakeSheet.vue'
 import StopEarningSheet from './StopEarningSheet.vue'
+import ValidatorsSheet from './ValidatorsSheet.vue'
 import WithdrawSheet from './WithdrawSheet.vue'
 import { formatNim, LUNA_PER_NIM, shortfallLuna } from '../lib/luna'
 import { PREVIEW_PLANTS } from '../lib/plants'
@@ -63,6 +64,8 @@ const delegationAddress = ref<string | null>(null)
 const stakeSheetMode = ref<'create' | 'add' | null>(null)
 const stopEarningSheetOpen = ref(false)
 const withdrawSheetOpen = ref(false)
+/** Read-only validator list from the Stake menu. Never sends anything. */
+const validatorsSheetOpen = ref(false)
 const latestInactiveFrom = ref<number | null>(null)
 const blocksPerEpoch = ref<number | null>(null)
 const currentBlockNumber = ref<number | null>(null)
@@ -711,6 +714,9 @@ onMounted(connect)
         <button v-if="readyToWithdraw || releasedLuna > 0n" class="btn-ghost full" type="button" @click="stakeMenuOpen = false; withdrawSheetOpen = true">
           {{ releasedLuna > 0n ? 'Finish withdrawing' : 'Withdraw' }}
         </button>
+        <button class="btn-ghost full" type="button" @click="stakeMenuOpen = false; validatorsSheetOpen = true">
+          Validators
+        </button>
       </div>
     </div>
 
@@ -745,6 +751,11 @@ onMounted(connect)
       :earning-luna="earningLuna"
       @close="stopEarningSheetOpen = false"
       @stopped="onStopped"
+    />
+    <ValidatorsSheet
+      v-if="validatorsSheetOpen"
+      :delegation="delegationAddress"
+      @close="validatorsSheetOpen = false"
     />
     <WithdrawSheet
       v-if="withdrawSheetOpen"

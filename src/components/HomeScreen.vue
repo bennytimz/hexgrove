@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { NimiqProvider } from '../nimiq/provider'
 import type { PlantData } from '../lib/plants'
+import type { CombinedState } from '../lib/refresh'
 import type { SkyCondition } from '../lib/sky'
 import type { WaitingPhase } from '../lib/waiting'
 import type { StoredWatering } from '../lib/watering'
@@ -14,6 +15,7 @@ import WithdrawSheet from './WithdrawSheet.vue'
 import { formatNim, LUNA_PER_NIM, shortfallLuna } from '../lib/luna'
 import { PREVIEW_PLANTS } from '../lib/plants'
 import { nextTier, plotsForStake } from '../lib/plots'
+import { combinedStateWhileLoading } from '../lib/refresh'
 import { compactAddress, computeSkyState, isValidatorHealthy } from '../lib/sky'
 import { computeWateringState, waterToday } from '../lib/watering'
 import { describeWaitingState, releaseBlock } from '../lib/waiting'
@@ -36,7 +38,6 @@ type Phase =
   | 'accountError'
   | 'ready'
 
-type CombinedState = 'loading' | 'error' | 'empty' | 'staked' | 'hidden'
 
 /** Remembers spendable balance across reloads in this tab, to tell "never staked" from "staked somewhere we can't see". */
 const SPENDABLE_STORAGE_KEY = 'hexgrove.lastSpendableLuna'
@@ -300,8 +301,8 @@ async function loadSky(nimiq: NimiqProvider, delegation: string | null) {
  * listAccounts gave us — a stake can be registered under a different
  * address entirely (see docs/SPEC.md, testnet observations, NQ59 vs NQ41).
  */
-async function loadCombined() {
-  combinedState.value = 'loading'
+async function loadCombined(quiet = false) {
+  combinedState.value = combinedStateWhileLoading(combinedState.value, quiet)
   try {
     const nimiq = await getProvider()
     nimiq.setRPCUrl(rpcUrlForNetwork(network.value))
@@ -389,6 +390,24 @@ async function loadCombined() {
   catch (error) {
     console.error('Could not load account state:', error)
     combinedState.value = 'error'
+  }
+}
+
+/**
+ * The always-visible Refresh button: reloads stake, validator health and
+ * the yield estimate without blanking the garden. Ignores taps while one is
+ * already running.
+ */
+const refreshing = ref(false)
+async function refresh() {
+  if (refreshing.value)
+    return
+  refreshing.value = true
+  try {
+    await loadCombined(true)
+  }
+  finally {
+    refreshing.value = false
   }
 }
 
@@ -572,7 +591,7 @@ onMounted(connect)
         <p class="hint" role="alert">
           Can't load your accounts right now.
         </p>
-        <button class="btn-ghost" type="button" @click="loadCombined">
+        <button class="btn-ghost" type="button" @click="loadCombined()">
           Try again
         </button>
       </template>
@@ -582,12 +601,18 @@ onMounted(connect)
           <span v-if="spendableLoadFailed" class="hint" role="alert">Spendable: can't load this right now.</span>
           <span v-else-if="spendableUnsupported" class="hint">Spendable: update Nimiq Pay to see this.</span>
           <span v-else class="hint">Spendable: {{ formatNim(spendableLuna) }} NIM</span>
-          <button v-if="spendableLoadFailed" class="linklike" type="button" @click="loadCombined">
-            Try again
-          </button>
-          <button v-else class="linklike" type="button" @click="togglePreview">
-            {{ previewing ? 'Exit preview' : 'Preview a mature garden' }}
-          </button>
+          <span class="subbar-actions">
+            <button
+              class="linklike" type="button" :disabled="refreshing" :aria-busy="refreshing"
+              @click="refresh"
+            >
+              {{ refreshing ? 'Refreshing…' : 'Refresh' }}
+            </button>
+            <button v-if="!spendableLoadFailed" class="linklike" type="button" @click="togglePreview">
+              {{ previewing ? 'Exit preview' : 'Preview a mature garden' }}
+            </button>
+          </span>
+          <span class="visually-hidden" aria-live="polite">{{ refreshing ? 'Refreshing' : '' }}</span>
         </div>
 
         <template v-if="previewing">
@@ -660,7 +685,7 @@ onMounted(connect)
         <template v-else-if="combinedState === 'hidden'">
           <h1>We can't see your stake yet</h1>
           <p>Pull to refresh.</p>
-          <button class="btn-ghost" type="button" @click="loadCombined">
+          <button class="btn-ghost" type="button" @click="loadCombined()">
             Refresh
           </button>
         </template>
@@ -910,6 +935,27 @@ onMounted(connect)
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+}
+
+.subbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.linklike:disabled {
+  color: var(--mist);
+  cursor: default;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .linklike {

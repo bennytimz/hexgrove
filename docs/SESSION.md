@@ -46,6 +46,7 @@ Testnet is fully verified end to end, including the full withdraw cycle.
 - `src/lib/txOutcome.ts` — the six approval outcomes (declined, not sent, network down, maybe sent, blocked, timed out) — never a plain retry for "maybe sent".
 - `src/components/HomeScreen.vue` — the garden, Earning/Waiting/Released rows, watering.
 - `src/components/StakeSheet.vue`, `StopEarningSheet.vue`, `WithdrawSheet.vue` — the three staking flows (create/add, stop earning, retire-then-remove).
+- `src/components/ValidatorsSheet.vue` — read-only validator list from Stake → Validators; sends nothing. Row wording lives in `src/lib/validatorRow.ts`.
 
 **Dev-only tools**, both gated behind `import.meta.env.DEV` and dead-code-eliminated from production builds:
 - `?mock=1` — three fake accounts plus a stateful mock provider, for working on screens without a phone. `&fail=` simulates specific approval failures; `&wait=` picks an unstaking-wait phase.
@@ -67,6 +68,7 @@ Testnet is fully verified end to end, including the full withdraw cycle.
 
 - **Rewards-based or time-staked growth.** Growth stage currently always renders as a seed; it should eventually come from rewards actually earned (or a time-staked fallback), not a fixed stage.
 - **More plant species.** Designed in `docs/SPEC.md`, not all built.
+- **Switch validator.** Needs testnet verification of open question 6 (does switching require stopping earning first?) before it's built. The SDK call is `sendUpdateStakerTransaction({ newDelegation, reactivateAllStake? })`. The Validators view stays read-only until then.
 - **Leaderboard.** Roadmap only, explicitly a month-3 update — do not build it now.
 - **"Released" row styling.** The row exists (`HomeScreen.vue`) but its visual treatment hasn't had a dedicated styling pass.
 - **Label the mockup HTML as sample-only.** `docs/hexgrove-mockup.html` should carry a visible note that it's a design reference with sample data, not live output.
@@ -82,5 +84,7 @@ Testnet is fully verified end to end, including the full withdraw cycle.
 ## Changelog
 
 Append new entries here, newest first, one line per session: date, what changed, what's still open.
+
+- 2026-11-11 — Branch `validators-browse` (not merged to main): read-only Validators view in the Stake menu, intro line at the top of How it works, always-visible Refresh on the home screen. Not yet verified on a phone. Switch validator added to open items, pending open question 6.
 
 - 2026-11-11 — Recorded mainnet add-stake and stop-earning confirmations in README/SPEC. Mainnet withdraw still pending the release wait. Created this handoff file.

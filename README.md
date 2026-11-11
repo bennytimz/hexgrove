@@ -80,7 +80,7 @@ Opening the same URL in a regular desktop browser (outside Nimiq Pay) should sho
 1. In Nimiq Pay, long-press the settings button for 10 seconds to open the dev menu, and switch to testnet.
 2. Copy your testnet address, and get test NIM from a testnet faucet (testnet NIM has no value, and can't move to mainnet).
 3. Open the app as described above, on testnet.
-4. From the home screen: **Stake** (minimum 100 NIM, read live, confirmed) creates a staker; **Add stake** adds to one. A validator is picked for you, with fee, reliability and network share shown when available, but you can browse and choose any active one.
+4. From the home screen: **Stake** (minimum 100 NIM, read live, confirmed) creates a staker; **Add stake** adds to one. A validator is picked for you, with fee, reliability and network share shown when available, but you can browse and choose any active one. Once you have a stake, **Stake → Validators** shows the same list read-only, with your current validator marked; it never moves your stake. **Refresh**, under the header, reloads your stake, validator health and the yield estimate.
 5. **Stop earning** and **Withdraw** are confirmed on testnet: a real unstake and withdraw, through the app's own flow (retire then remove, both approved in Nimiq Pay), ran on 2026-11-10. Still worth trying yourself; expect the wait to be about 12 to 24 hours depending on timing. See `docs/SPEC.md`'s open question 13, now answered.
 
 ## Testing on mainnet (create stake, add stake and stop earning confirmed; withdraw still unverified)
@@ -165,6 +165,7 @@ npm run build       # production build
 - ~~Watering and streaks~~ (built, local only).
 - **Rewards-based growth.** Growth stage and plant species should come from rewards actually earned, not a fixed seed stage, once reward payouts can be read and classified reliably.
 - **More species.** The full plant set (common species from rewards, rare species from watering streaks) is designed in `docs/SPEC.md` but not all of it is built.
+- **Switch validators.** The SDK has `sendUpdateStakerTransaction({ newDelegation })`, but whether switching pauses earning first is unconfirmed (`docs/SPEC.md`, open question 6). Not built until that's verified on testnet; the Validators view is read-only until then.
 - **A small backend.** Watering history and streaks are local-only today; a backend keyed to the wallet address would sync them across devices.
 - Collection, Progress, and a shareable garden card.
 - A leaderboard is on the roadmap only. The data model is kept ready for it, but it isn't built.

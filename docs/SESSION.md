@@ -14,7 +14,7 @@ Hexgrove is a Nimiq Pay mini app for the **Earn** category of the **Nimiq Mini A
 **Submitted** as PR #331 to the competition repository. Deadline: 2026-11-11 23:59 UTC.
 
 Two hard constraints from here on:
-- **Don't change the submission folder** (whatever PR #331 touched in the competition repo).
+- **Don't change the submission folder** (whatever PR #331 touched in the competition repo), except for text-only updates. PR #331 was merged on 2026-11-11. On 2026-11-11 the folder's text was updated via follow-up PR #351 (from the `bennytimz` fork, branch `update-hexgrove-nov11`): description, builder story and README only. Any future change there must also be text-only (`description`, `builder_story`, `README.md`), with no image, folder, `github_login`, category or schema changes, and must pass the repo's own validator (`node scripts/validate.mjs structural`).
 - **Don't break the live app.** Judges and random evaluators will open `hexgrove.vercel.app` after the deadline.
 
 ## 3. What's verified, by network
@@ -82,6 +82,7 @@ Both networks are verified end to end, including the full withdraw cycle. On mai
 
 Append new entries here, newest first, one line per session: date, what changed, what's still open.
 
+- 2026-11-11 — Updated the competition submission text via follow-up PR #351 (https://github.com/nimiq/miniappscompetition-submissions/pull/351): description, builder story and README only, now saying mainnet verification is complete and describing the Validators view and Refresh. All structural and external checks pass. Future submission changes must be text-only.
 - 2026-11-11 — Mainnet withdraw confirmed (100 NIM back to Spendable, about 17:55 Lagos, retire then remove through the app). Recorded in README, SPEC and this file; the full staking lifecycle is now verified on both networks. Still open: switch validator (open question 6).
 - 2026-11-11 — Merged `validators-browse` into main (fast-forward to 3750aec) and pushed, with the Spendable/Refresh line and Preview on its own row below. Typecheck, 179 tests and build pass on main. Mainnet withdraw and switch validator (open question 6) still open.
 - 2026-11-11 — Branch `validators-browse` (not merged to main): read-only Validators view in the Stake menu, intro line at the top of How it works, always-visible Refresh on the home screen; phone test passed. Follow-ups: waiting-line full stop, one-decimal yearly rate in the list, and the testnet directory's `-1` "not scored" sentinel now read as no score instead of Stormy. Switch validator added to open items, pending open question 6.

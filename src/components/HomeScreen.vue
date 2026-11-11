@@ -601,18 +601,18 @@ onMounted(connect)
           <span v-if="spendableLoadFailed" class="hint" role="alert">Spendable: can't load this right now.</span>
           <span v-else-if="spendableUnsupported" class="hint">Spendable: update Nimiq Pay to see this.</span>
           <span v-else class="hint">Spendable: {{ formatNim(spendableLuna) }} NIM</span>
-          <span class="subbar-actions">
-            <button
-              class="linklike" type="button" :disabled="refreshing" :aria-busy="refreshing"
-              @click="refresh"
-            >
-              {{ refreshing ? 'Refreshing…' : 'Refresh' }}
-            </button>
-            <button v-if="!spendableLoadFailed" class="linklike" type="button" @click="togglePreview">
-              {{ previewing ? 'Exit preview' : 'Preview a mature garden' }}
-            </button>
-          </span>
+          <button
+            class="linklike" type="button" :disabled="refreshing" :aria-busy="refreshing"
+            @click="refresh"
+          >
+            {{ refreshing ? 'Refreshing…' : 'Refresh' }}
+          </button>
           <span class="visually-hidden" aria-live="polite">{{ refreshing ? 'Refreshing' : '' }}</span>
+        </div>
+        <div class="preview-row">
+          <button class="linklike" type="button" @click="togglePreview">
+            {{ previewing ? 'Exit preview' : 'Preview a mature garden' }}
+          </button>
         </div>
 
         <template v-if="previewing">
@@ -937,11 +937,10 @@ onMounted(connect)
   gap: 8px;
 }
 
-.subbar-actions {
+/* Cancels .home's 10px gap so it sits right under the Spendable row as one block; the 44px tap targets touch but never overlap. */
+.preview-row {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: auto;
+  margin-top: -10px;
 }
 
 .linklike:disabled {
